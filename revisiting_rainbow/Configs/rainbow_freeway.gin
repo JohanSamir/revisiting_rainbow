@@ -1,0 +1,47 @@
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.jax.networks
+import dopamine.discrete_domains.gym_lib
+import dopamine.discrete_domains.run_experiment
+import dopamine.replay_memory.prioritized_replay_buffer
+
+import networks_new
+import rainbow_agent_new
+import minatar_env
+
+JaxDQNAgent.observation_shape = %minatar_env.FREEWAY_SHAPE
+JaxDQNAgent.observation_dtype = %minatar_env.DTYPE
+JaxDQNAgent.stack_size = 1
+
+JaxDQNAgent.gamma = 0.99
+JaxDQNAgent.update_horizon = 3 # Rainbow
+JaxDQNAgent.min_replay_history = 1000
+JaxDQNAgent.update_period = 4 
+JaxDQNAgent.target_update_period = 1000
+
+JaxRainbowAgentNew.optimizer = 'adam'
+JaxRainbowAgentNew.noisy = False
+JaxRainbowAgentNew.dueling = False
+JaxRainbowAgentNew.double_dqn = False
+JaxRainbowAgentNew.net_conf = 'minatar'
+JaxRainbowAgentNew.env = None
+JaxRainbowAgentNew.normalize_obs = False
+JaxRainbowAgentNew.hidden_layer = 0
+JaxRainbowAgentNew.neurons = None
+JaxRainbowAgentNew.num_atoms = 51 # Original 51 
+JaxRainbowAgentNew.vmax = 100.
+JaxRainbowAgentNew.replay_scheme = 'prioritized' 
+JaxRainbowAgentNew.network  = @networks_new.RainbowDQN 
+JaxRainbowAgentNew.epsilon_fn = @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
+
+create_optimizer.learning_rate = 0.0001
+create_optimizer.eps = 0.0003125
+
+create_minatar_env.game_name  = 'freeway'
+TrainRunner.create_environment_fn = @minatar_env.create_minatar_env
+
+Runner.num_iterations = 10
+Runner.training_steps = 1000000
+Runner.max_steps_per_episode = 100000000
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 100000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 32

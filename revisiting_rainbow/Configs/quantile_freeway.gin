@@ -1,0 +1,46 @@
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.jax.networks
+import dopamine.discrete_domains.gym_lib
+import dopamine.discrete_domains.run_experiment
+import dopamine.replay_memory.prioritized_replay_buffer
+
+import networks_new
+import quantile_agent_new
+import minatar_env
+
+JaxDQNAgent.observation_shape = %minatar_env.FREEWAY_SHAPE
+JaxDQNAgent.observation_dtype = %minatar_env.DTYPE
+JaxDQNAgent.stack_size = 1
+JaxDQNAgent.gamma = 0.99
+JaxDQNAgent.update_horizon = 3
+JaxDQNAgent.min_replay_history = 1000 # agent steps
+JaxDQNAgent.update_period = 4
+JaxDQNAgent.target_update_period = 1000 # agent steps
+
+JaxQuantileAgentNew.optimizer = 'adam'
+JaxQuantileAgentNew.kappa = 1.0
+JaxQuantileAgentNew.num_atoms = 51
+JaxQuantileAgentNew.net_conf = 'minatar'
+JaxQuantileAgentNew.env = None
+JaxQuantileAgentNew.normalize_obs = False
+JaxQuantileAgentNew.hidden_layer = 0
+JaxQuantileAgentNew.neurons = None
+JaxQuantileAgentNew.double_dqn = False
+JaxQuantileAgentNew.noisy = False
+JaxQuantileAgentNew.dueling = False
+JaxQuantileAgentNew.replay_scheme = 'prioritized'
+JaxQuantileAgentNew.network  = @networks_new.QuantileNetwork 
+JaxQuantileAgentNew.epsilon_fn = @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
+
+create_optimizer.learning_rate = 0.0001
+create_optimizer.eps = 0.0003125
+
+create_minatar_env.game_name  ='freeway'
+TrainRunner.create_environment_fn = @minatar_env.create_minatar_env
+
+Runner.num_iterations = 10
+Runner.training_steps = 1000000
+Runner.max_steps_per_episode = 100000000
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 100000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 32

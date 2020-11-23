@@ -1,0 +1,2 @@
+dopamine-rl==3.1.8 
+minatar -> https://github.com/kenjyoung/MinAtar

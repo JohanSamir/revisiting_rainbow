@@ -1,0 +1,46 @@
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.jax.networks
+import dopamine.discrete_domains.gym_lib
+import dopamine.discrete_domains.run_experiment
+import dopamine.replay_memory.prioritized_replay_buffer
+
+import networks_new
+import rainbow_agent_new
+
+JaxDQNAgent.observation_shape = (8,1)
+JaxDQNAgent.observation_dtype = %jax_networks.LUNALANDER_OBSERVATION_DTYPE
+JaxDQNAgent.stack_size = 1
+
+JaxDQNAgent.gamma = 0.99
+JaxDQNAgent.update_horizon = 3 # Rainbow
+JaxDQNAgent.min_replay_history = 500
+JaxDQNAgent.update_period = 4 
+JaxDQNAgent.target_update_period = 300
+
+JaxRainbowAgentNew.optimizer = 'adam'
+JaxRainbowAgentNew.noisy = False
+JaxRainbowAgentNew.dueling = False
+JaxRainbowAgentNew.double_dqn = False
+JaxRainbowAgentNew.net_conf = 'classic'
+JaxRainbowAgentNew.env = 'LunarLander'
+JaxRainbowAgentNew.normalize_obs = False
+JaxRainbowAgentNew.hidden_layer = 2
+JaxRainbowAgentNew.neurons = 512
+JaxRainbowAgentNew.num_atoms = 51 # Original 51 
+JaxRainbowAgentNew.vmax = 200.
+JaxRainbowAgentNew.replay_scheme = 'prioritized' 
+JaxRainbowAgentNew.network  = @networks_new.RainbowDQN 
+JaxRainbowAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
+
+create_optimizer.learning_rate = 1e-3
+create_optimizer.eps = 3.125e-4
+create_gym_environment.environment_name = 'LunarLander'
+create_gym_environment.version = 'v2'
+TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
+
+Runner.num_iterations = 30
+Runner.training_steps = 4000
+Runner.max_steps_per_episode = 1000  # Default max episode length.
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 128

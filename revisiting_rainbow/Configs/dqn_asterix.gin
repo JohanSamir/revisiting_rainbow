@@ -1,0 +1,47 @@
+import dopamine.discrete_domains.gym_lib
+import dopamine.jax.networks
+import dopamine.discrete_domains.run_experiment
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.replay_memory.circular_replay_buffer
+
+import networks_new
+import dqn_agent_new
+import minatar_env
+
+JaxDQNAgent.observation_shape = %minatar_env.ASTERIX_SHAPE
+JaxDQNAgent.observation_dtype = %minatar_env.DTYPE 
+JaxDQNAgent.stack_size = 1
+
+JaxDQNAgent.gamma = 0.99
+JaxDQNAgent.update_horizon = 1
+JaxDQNAgent.min_replay_history = 1000
+JaxDQNAgent.update_period = 4
+JaxDQNAgent.target_update_period = 1000
+
+JaxDQNAgentNew.optimizer = 'adam'
+JaxDQNAgentNew.net_conf = 'minatar'
+JaxDQNAgentNew.env = None
+JaxDQNAgentNew.normalize_obs = False
+JaxDQNAgentNew.hidden_layer = 0
+JaxDQNAgentNew.neurons = None
+JaxDQNAgentNew.prioritized = False
+JaxDQNAgentNew.double_dqn = False
+JaxDQNAgentNew.mse_inf = False
+JaxDQNAgentNew.noisy = False
+JaxDQNAgentNew.dueling = False
+JaxDQNAgentNew.network = @networks_new.DQNNetwork
+JaxDQNAgentNew.epsilon_fn =  @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
+
+create_optimizer = @dqn_agent.create_optimizer
+create_optimizer.learning_rate = 0.00025
+create_optimizer.eps = 3.125e-4
+
+create_minatar_env.game_name  = 'asterix'
+TrainRunner.create_environment_fn =  @minatar_env.create_minatar_env
+
+Runner.num_iterations = 10
+Runner.training_steps = 1000000
+Runner.max_steps_per_episode = 100000000
+
+OutOfGraphReplayBuffer.replay_capacity = 100000
+OutOfGraphReplayBuffer.batch_size = 32
