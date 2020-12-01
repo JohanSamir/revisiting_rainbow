@@ -9,11 +9,11 @@ Our rainbow agent implements three addittional components to the rainbow agent p
 * Dueling networks  ([Hado van Hasselt et al., 2016][wang])
 * Double Q-learning ([Ziyu Wang et al., 2016][hasselt])
 
-if you are interested to know more about Revisiting Rainbow, considering check the following sources:
+if you are interested to know more about Revisiting Rainbow, considering check the following resources:
 
-* **Paper:**
-* **Video:**
-* **Blog:**
+* **Paper:** [arxiv.org/abs/2011.14826][arXiv_rev] 
+* **Blog:** [https://psc-g.github.io/posts/...][blog]
+* **Video:** [https://slideslive.com/38941329/...][video]
 
 
 ## Quick Start
@@ -68,7 +68,9 @@ Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 [Hessel]: https://arxiv.org/abs/1710.02298
 [young]: https://arxiv.org/abs/1903.03176
 [young_repo]: https://github.com/kenjyoung/MinAtar
-[arXiv_rev]:
+[arXiv_rev]: arxiv.org/abs/2011.14826
+[blog]: https://psc-g.github.io/posts/research/rl/revisiting_rainbow/
+[video]: https://slideslive.com/38941329/revisiting-rainbow-promoting-more-insightful-and-inclusive-deep-reinforcement-learning-research
 
 ## Giving credit
 If you use Revisiting Rainbow in your research please cite the following:
