@@ -68,7 +68,7 @@ Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 [Hessel]: https://arxiv.org/abs/1710.02298
 [young]: https://arxiv.org/abs/1903.03176
 [young_repo]: https://github.com/kenjyoung/MinAtar
-[arXiv_rev]: arxiv.org/abs/2011.14826
+[arXiv_rev]: https://arxiv.org/abs/2011.14826
 [blog]: https://psc-g.github.io/posts/research/rl/revisiting_rainbow/
 [video]: https://slideslive.com/38941329/revisiting-rainbow-promoting-more-insightful-and-inclusive-deep-reinforcement-learning-research
 
