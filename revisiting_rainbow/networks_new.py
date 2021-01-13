@@ -98,7 +98,7 @@ class DQNNetwork(nn.Module):
       x = x.astype(jnp.float32)
       x = x.reshape((x.shape[0], -1))
 
-    if env is not None:
+    if env is not None and env in env_inf:
       x = x - env_inf[env]['MIN_VALS']
       x /= env_inf[env]['MAX_VALS'] - env_inf[env]['MIN_VALS']
       x = 2.0 * x - 1.0
@@ -162,7 +162,7 @@ class RainbowDQN(nn.Module):
       x = x.reshape((x.shape[0], -1))
 
 
-    if env is not None:
+    if env is not None and env in env_inf:
       x = x - env_inf[env]['MIN_VALS']
       x /= env_inf[env]['MAX_VALS'] - env_inf[env]['MIN_VALS']
       x = 2.0 * x - 1.0
@@ -238,7 +238,7 @@ class QuantileNetwork(nn.Module):
       x = x.reshape((x.shape[0], -1))
 
 
-    if env is not None:
+    if env is not None and env in env_inf:
       x = x - env_inf[env]['MIN_VALS']
       x /= env_inf[env]['MAX_VALS'] - env_inf[env]['MIN_VALS']
       x = 2.0 * x - 1.0
