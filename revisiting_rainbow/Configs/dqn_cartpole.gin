@@ -24,10 +24,13 @@ JaxDQNAgentNew.normalize_obs = True
 JaxDQNAgentNew.hidden_layer = 2
 JaxDQNAgentNew.neurons = 512
 JaxDQNAgentNew.prioritized = False
-JaxDQNAgentNew.double_dqn = False
+JaxDQNAgentNew.target_opt = 2 #0:DQN 1:Double DQN 2:Munchausen DQN
 JaxDQNAgentNew.mse_inf = False
 JaxDQNAgentNew.noisy = False
 JaxDQNAgentNew.dueling = False
+JaxDQNAgentNew.tau = 0.03 #1000
+JaxDQNAgentNew.alpha = 0.9 
+JaxDQNAgentNew.clip_value_min = -1
 JaxDQNAgentNew.network = @networks_new.DQNNetwork
 JaxDQNAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
 

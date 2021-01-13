@@ -8,6 +8,7 @@ Our rainbow agent implements three addittional components to the rainbow agent p
 * Noisy nets ([Meire Fortunato et al., 2018][fortunato])
 * Dueling networks  ([Hado van Hasselt et al., 2016][wang])
 * Double Q-learning ([Ziyu Wang et al., 2016][hasselt])
+* Munchausen Reinforcement Learning ([Nino Vieillard et al., 2016][Vieillard])
 
 if you are interested to know more about Revisiting Rainbow, considering check the following resources:
 
@@ -60,6 +61,7 @@ Representation Learning (ICLR 2018), Vancouver (Canada), 2018.][fortunato]
 [Ziyu Wang, Tom Schaul, Matteo Hessel, Hado Hasselt, Marc Lanctot, and Nando Freitas. *Dueling network architectures for deep reinforcement learning*. In Proceedings of the 33rd International
 Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 
+[Vieillard, N., Pietquin, O., and Geist, M. Munchausen Reinforcement Learning. In Advances in Neural Information Processing Systems (NeurIPS), 2020.][Vieillard]
 
 [fortunato]: https://arxiv.org/abs/1706.10295
 [hasselt]: https://arxiv.org/abs/1509.06461
@@ -67,6 +69,7 @@ Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 [castro]: https://arxiv.org/abs/1812.06110
 [Hessel]: https://arxiv.org/abs/1710.02298
 [young]: https://arxiv.org/abs/1903.03176
+[Vieillard]: https://arxiv.org/abs/2007.14430
 [young_repo]: https://github.com/kenjyoung/MinAtar
 [arXiv_rev]: https://arxiv.org/abs/2011.14826
 [blog]: https://psc-g.github.io/posts/research/rl/revisiting_rainbow/

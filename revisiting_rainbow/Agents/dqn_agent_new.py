@@ -8,12 +8,15 @@ Specifically, we implement the following components:
   * double_dqn
   * noisy
   * dueling
+  * Munchausen
 
 Details in: 
 "Human-level control through deep reinforcement learning" by Mnih et al. (2015).
 "Noisy Networks for Exploration" by Fortunato et al. (2017).
 "Deep Reinforcement Learning with Double Q-learning" by Hasselt et al. (2015).
 "Dueling Network Architectures for Deep Reinforcement Learning" by Wang et al. (2015).
+"Munchausen Reinforcement Learning" by Vieillard et al. (2020).
+
 """
 
 import functools
@@ -25,15 +28,16 @@ import jax
 import jax.numpy as jnp
 import numpy as onp
 import tensorflow as tf
+import jax.scipy.special as scp
 
 
 def mse_loss(targets, predictions):
   return jnp.mean(jnp.power((targets - (predictions)),2))
 
 
-@functools.partial(jax.jit, static_argnums=(7,8,9))
+@functools.partial(jax.jit, static_argnums=(7,8,9,10,11,12))
 def train(target_network, optimizer, states, actions, next_states, rewards,
-          terminals, cumulative_gamma,double_dqn, mse_inf):
+          terminals, cumulative_gamma,target_opt, mse_inf,tau,alpha,clip_value_min):
   """Run the training step."""
   def loss_fn(model, target, mse_inf):
     q_values = jax.vmap(model, in_axes=(0))(states).q_values
@@ -49,17 +53,24 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
 
   grad_fn = jax.value_and_grad(loss_fn)
 
-  if double_dqn:
+  if target_opt == 0:
+    target = dqn_agent.target_q(target_network, next_states, rewards, terminals, cumulative_gamma) 
+  elif target_opt == 1:
+    #Double DQN
     target = target_DDQN(optimizer, target_network, next_states, rewards,  terminals, cumulative_gamma)
+  elif target_opt == 2:
+    #Munchausen
+    target = target_m_dqn(optimizer,target_network,states,next_states,actions,rewards,terminals,
+                cumulative_gamma,tau,alpha,clip_value_min)
   else:
-    target = dqn_agent.target_q(target_network, next_states, rewards,  terminals, cumulative_gamma) 
+    print('error')
 
   loss, grad = grad_fn(optimizer.target, target, mse_inf)
   optimizer = optimizer.apply_gradient(grad)
   return optimizer, loss
 
 def target_DDQN(model, target_network, next_states, rewards, terminals, cumulative_gamma):
-  """Compute the target Q-value."""
+  """Compute the target Q-value. Double DQN"""
   next_q_values = jax.vmap(model.target, in_axes=(0))(next_states).q_values
   next_q_values = jnp.squeeze(next_q_values)
   replay_next_qt_max = jnp.argmax(next_q_values, axis=1)
@@ -71,12 +82,47 @@ def target_DDQN(model, target_network, next_states, rewards, terminals, cumulati
   return jax.lax.stop_gradient(rewards + cumulative_gamma * replay_chosen_q *
                                (1. - terminals))
 
+
+def target_m_dqn(model, target_network, states, next_states, actions,rewards, terminals, 
+                cumulative_gamma,tau,alpha,clip_value_min):
+  """Compute the target Q-value. Munchausen DQN"""
+  q_state_values = jax.vmap(target_network, in_axes=(0))(states).q_values
+  q_state_values = jnp.squeeze(q_state_values)
+  replay_qt_max = jnp.argmax(q_state_values, axis=1).reshape(q_state_values.shape[0],1)
+
+  next_q_values = jax.vmap(target_network, in_axes=(0))(next_states).q_values
+  next_q_values = jnp.squeeze(next_q_values)
+  replay_next_qt_max = jnp.argmax(next_q_values, axis=1).reshape(next_q_values.shape[0],1)
+
+  logsum = scp.logsumexp((next_q_values-replay_next_qt_max)/tau,1).reshape(next_q_values.shape[0],1)
+  tau_log_pi_next = next_q_values-replay_next_qt_max-tau*logsum
+
+  pi_target = jax.nn.softmax(next_q_values/tau, axis=-1)
+  ter = (1. - terminals).reshape((1. - terminals).shape[0],1)
+  
+  Q_target = cumulative_gamma*jnp.sum(pi_target*(next_q_values-tau_log_pi_next)*ter,axis=1)
+  Q_target = Q_target.reshape(Q_target.shape[0],1)
+  
+  logsum_q_targe = scp.logsumexp((q_state_values-replay_qt_max)/tau,1).reshape(q_state_values.shape[0],1)
+  tau_log_pi = q_state_values-replay_qt_max-tau*logsum_q_targe
+  
+  munchausen_addon = jax.vmap(lambda x, y: x[y])(tau_log_pi, actions)
+  munchausen_reward = rewards + alpha* jnp.clip(munchausen_addon, a_min=clip_value_min,a_max=0)
+  munchausen_reward = munchausen_reward.reshape(munchausen_reward.shape[0],1)
+  
+  q_target = munchausen_reward+Q_target 
+  return jax.lax.stop_gradient(q_target)
+
 @gin.configurable
 class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
   """A compact implementation of a simplified Rainbow agent."""
 
   def __init__(self,
                num_actions,
+
+               tau,
+               alpha=1,
+               clip_value_min=-10,
 
                net_conf = None,
                env = "CartPole", 
@@ -86,7 +132,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                prioritized=False,
                noisy = False,
                dueling = False,
-               double_dqn=False,
+               target_opt=0,
                mse_inf=False,
                network=networks.NatureDQNNetwork,
                optimizer='adam',
@@ -137,8 +183,11 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
     self._neurons=neurons 
     self._noisy = noisy
     self._dueling = dueling
-    self._double_dqn = double_dqn
+    self._target_opt = target_opt
     self._mse_inf = mse_inf
+    self._tau = tau
+    self._alpha = alpha
+    self._clip_value_min = clip_value_min
 
     super(JaxDQNAgentNew, self).__init__(
         num_actions= num_actions,
@@ -195,9 +244,12 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                      self.replay_elements['reward'],
                                      self.replay_elements['terminal'],
                                      self.cumulative_gamma,
-                                     self._double_dqn,
-                                     self._mse_inf)
-        if self._prioritized == 'prioritized':
+                                     self._target_opt,
+                                     self._mse_inf,
+                                     self._tau,
+                                     self._alpha,
+                                     self._clip_value_min)
+        if self._prioritized == True:
           # The original prioritized experience replay uses a linear exponent
           # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
           # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)

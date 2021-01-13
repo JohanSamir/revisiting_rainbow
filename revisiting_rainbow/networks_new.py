@@ -186,7 +186,7 @@ class RainbowDQN(nn.Module):
       value = net(x, features=num_atoms)
       adv = adv.reshape((adv.shape[0], num_actions, num_atoms))
       value = value.reshape((value.shape[0], 1, num_atoms))
-      logits = value + (adv - (jnp.mean(adv, -1, keepdims=True)))
+      logits = value + (adv - (jnp.mean(adv, -2, keepdims=True)))
       probabilities = nn.softmax(logits)
       q_values = jnp.sum(support * probabilities, axis=2)
 
@@ -261,7 +261,7 @@ class QuantileNetwork(nn.Module):
       value = net(x, features=num_atoms)
       adv = adv.reshape((adv.shape[0], num_actions, num_atoms))
       value = value.reshape((value.shape[0], 1, num_atoms))
-      logits = value + (adv - (jnp.mean(adv, -1, keepdims=True)))
+      logits = value + (adv - (jnp.mean(adv, -2, keepdims=True)))
       probabilities = nn.softmax(logits)
       q_values = jnp.mean(logits, axis=2)
 
