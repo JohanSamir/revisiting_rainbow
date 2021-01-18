@@ -7,8 +7,8 @@ import dopamine.replay_memory.circular_replay_buffer
 import networks_new
 import dqn_agent_new
 
-JaxDQNAgent.observation_shape =  (8,1)
-JaxDQNAgent.observation_dtype = %jax_networks.LUNALANDER_OBSERVATION_DTYPE
+JaxDQNAgent.observation_shape = %gym_lib.LUNAR_OBSERVATION_SHAPE
+JaxDQNAgent.observation_dtype = %gym_lib.LUNAR_OBSERVATION_DTYPE
 JaxDQNAgent.stack_size = 1
 
 JaxDQNAgent.gamma = 0.99
