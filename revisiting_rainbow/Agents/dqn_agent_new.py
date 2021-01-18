@@ -120,7 +120,7 @@ def target_m_dqn(model, target_network, states, next_states, actions,rewards, te
   replay_log_policy = stable_scaled_log_softmax(q_state_values, tau, axis=1)
   #print('replay_log_policy:',replay_log_policy.shape)
   
-  replay_action_one_hot = jax.nn.one_hot(actions, 2)
+  replay_action_one_hot = jax.nn.one_hot(actions, q_state_values.shape[-1])
   tau_log_pi_a = jnp.sum(replay_log_policy * replay_action_one_hot, axis=1)
   #print('tau_log_pi_a:',tau_log_pi_a.shape)
 
