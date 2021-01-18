@@ -22,11 +22,6 @@ env_inf = {"CartPole":{"MIN_VALS": onp.array([-2.4, -5., -math.pi/12., -math.pi*
 
 #---------------------------------------------------------------------------------------------------------------------
 
-gin.constant('jax_networks.LUNALANDER_OBSERVATION_DTYPE', jnp.float64)
-gin.constant('jax_networks.MOUNTAINCAR_OBSERVATION_DTYPE', jnp.float64)
-
-#---------------------------------------------------------------------------------------------------------------------
-
 @gin.configurable
 class NoisyNetwork(nn.Module):
   def apply(self, x, features, bias=True, kernel_init=None):
