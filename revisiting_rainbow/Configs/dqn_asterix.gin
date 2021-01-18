@@ -13,7 +13,7 @@ JaxDQNAgent.observation_dtype = %minatar_env.DTYPE
 JaxDQNAgent.stack_size = 1
 
 JaxDQNAgent.gamma = 0.99
-JaxDQNAgent.update_horizon = 1
+JaxDQNAgent.update_horizon = 3
 JaxDQNAgent.min_replay_history = 1000
 JaxDQNAgent.update_period = 4
 JaxDQNAgent.target_update_period = 1000
@@ -36,8 +36,8 @@ JaxDQNAgentNew.alpha = 0.9
 JaxDQNAgentNew.clip_value_min = -1
 
 create_optimizer = @dqn_agent.create_optimizer
-create_optimizer.learning_rate = 0.00025
-create_optimizer.eps = 3.125e-4
+create_optimizer.learning_rate = 0.001
+create_optimizer.eps = 0.01
 
 create_minatar_env.game_name  = 'asterix'
 TrainRunner.create_environment_fn =  @minatar_env.create_minatar_env
