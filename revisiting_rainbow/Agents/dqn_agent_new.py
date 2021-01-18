@@ -82,36 +82,61 @@ def target_DDQN(model, target_network, next_states, rewards, terminals, cumulati
   return jax.lax.stop_gradient(rewards + cumulative_gamma * replay_chosen_q *
                                (1. - terminals))
 
+def stable_scaled_log_softmax(x, tau, axis=-1):
+  max_x = jnp.amax(x, axis=axis, keepdims=True)
+  y = x - max_x
+  tau_lse = max_x + tau * jnp.log(jnp.sum(jnp.exp(y / tau), axis=axis, keepdims=True))
+  return x - tau_lse
+
+def stable_softmax(x, tau, axis=-1):
+  max_x = jnp.amax(x, axis=axis, keepdims=True)
+  y = x - max_x
+  return jax.nn.softmax(y/tau, axis=axis)
 
 def target_m_dqn(model, target_network, states, next_states, actions,rewards, terminals, 
                 cumulative_gamma,tau,alpha,clip_value_min):
   """Compute the target Q-value. Munchausen DQN"""
   q_state_values = jax.vmap(target_network, in_axes=(0))(states).q_values
   q_state_values = jnp.squeeze(q_state_values)
-  replay_qt_max = jnp.argmax(q_state_values, axis=1).reshape(q_state_values.shape[0],1)
+  #print('q_state_values:',q_state_values.shape)
 
   next_q_values = jax.vmap(target_network, in_axes=(0))(next_states).q_values
   next_q_values = jnp.squeeze(next_q_values)
-  replay_next_qt_max = jnp.argmax(next_q_values, axis=1).reshape(next_q_values.shape[0],1)
+  #print('next_q_values:',next_q_values.shape)
 
-  logsum = scp.logsumexp((next_q_values-replay_next_qt_max)/tau,1).reshape(next_q_values.shape[0],1)
-  tau_log_pi_next = next_q_values-replay_next_qt_max-tau*logsum
+  tau_log_pi_next =  stable_scaled_log_softmax(next_q_values, tau, axis=1)
+  #print('tau_log_pi_next:',tau_log_pi_next.shape)
 
-  pi_target = jax.nn.softmax(next_q_values/tau, axis=-1)
-  ter = (1. - terminals).reshape((1. - terminals).shape[0],1)
+
+  #pi_target = jnp.amax(next_q_values, axis=1, keepdims=True)
+  pi_target = stable_softmax(next_q_values,tau, axis=1)
+  #print('pi_target:',pi_target.shape)
+
+  replay_next_qt_softmax = jnp.sum((next_q_values-tau_log_pi_next)*pi_target,axis=1)
+  #Q_target = Q_target.reshape(Q_target.shape[0],1)
+  #print('replay_next_qt_softmax:',replay_next_qt_softmax.shape)
+
+  #replay_log_policy =  jnp.amax(q_state_values,axis=1,keepdims=True)
+  replay_log_policy = stable_scaled_log_softmax(q_state_values, tau, axis=1)
+  #print('replay_log_policy:',replay_log_policy.shape)
   
-  Q_target = cumulative_gamma*jnp.sum(pi_target*(next_q_values-tau_log_pi_next)*ter,axis=1)
-  Q_target = Q_target.reshape(Q_target.shape[0],1)
+  replay_action_one_hot = jax.nn.one_hot(actions, 2)
+  tau_log_pi_a = jnp.sum(replay_log_policy * replay_action_one_hot, axis=1)
+  #print('tau_log_pi_a:',tau_log_pi_a.shape)
+
+  #a_max=1
+  tau_log_pi_a = jnp.clip(tau_log_pi_a, a_min=clip_value_min,a_max=1)
+  #print('tau_log_pi_a:',tau_log_pi_a.shape)
+
+  munchausen_term = alpha * tau_log_pi_a
+  #print('munchausen_term:',munchausen_term.shape)
+
   
-  logsum_q_targe = scp.logsumexp((q_state_values-replay_qt_max)/tau,1).reshape(q_state_values.shape[0],1)
-  tau_log_pi = q_state_values-replay_qt_max-tau*logsum_q_targe
+  modified_bellman = (rewards + munchausen_term +cumulative_gamma * replay_next_qt_softmax *
+        (1. - jnp.float32(terminals)))
+  #print('modified_bellman:',modified_bellman.shape)
   
-  munchausen_addon = jax.vmap(lambda x, y: x[y])(tau_log_pi, actions)
-  munchausen_reward = rewards + alpha* jnp.clip(munchausen_addon, a_min=clip_value_min,a_max=0)
-  munchausen_reward = munchausen_reward.reshape(munchausen_reward.shape[0],1)
-  
-  q_target = munchausen_reward+Q_target 
-  return jax.lax.stop_gradient(q_target)
+  return jax.lax.stop_gradient(modified_bellman)
 
 @gin.configurable
 class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
