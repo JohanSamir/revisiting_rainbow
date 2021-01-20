@@ -274,25 +274,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                      self._tau,
                                      self._alpha,
                                      self._clip_value_min)
-        if self._prioritized == True:
-          # The original prioritized experience replay uses a linear exponent
-          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
-          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
-          # suggested a fixed exponent actually performs better, except on Pong.
-          probs = self.replay_elements['sampling_probabilities']
-          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
-          loss_weights /= jnp.max(loss_weights)
-
-          # Rainbow and prioritized replay are parametrized by an exponent
-          # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
-          # leave it as is here, using the more direct sqrt(). Taking the square
-          # root "makes sense", as we are dealing with a squared loss.  Add a
-          # small nonzero value to the loss to avoid 0 priority items. While
-          # technically this may be okay, setting all items to 0 priority will
-          # cause troubles, and also result in 1.0 / 0.0 = NaN correction terms.
-          self._replay.set_priority(self.replay_elements['indices'],
-                                    jnp.sqrt(loss + 1e-10))
-
+        
         if (self.summary_writer is not None and
             self.training_steps > 0 and
             self.training_steps % self.summary_writing_frequency == 0):

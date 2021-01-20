@@ -3,6 +3,7 @@ import dopamine.jax.networks
 import dopamine.discrete_domains.run_experiment
 import dopamine.jax.agents.dqn.dqn_agent
 import dopamine.replay_memory.circular_replay_buffer
+import dopamine.replay_memory.prioritized_replay_buffer
 
 import networks_new
 import dqn_agent_new
@@ -48,3 +49,6 @@ Runner.max_steps_per_episode = 100000000
 
 OutOfGraphReplayBuffer.replay_capacity = 100000
 OutOfGraphReplayBuffer.batch_size = 32
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 100000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 32

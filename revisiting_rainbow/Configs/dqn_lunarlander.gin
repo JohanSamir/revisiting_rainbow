@@ -3,6 +3,7 @@ import dopamine.jax.networks
 import dopamine.discrete_domains.run_experiment
 import dopamine.jax.agents.dqn.dqn_agent
 import dopamine.replay_memory.circular_replay_buffer
+import dopamine.replay_memory.prioritized_replay_buffer
 
 import networks_new
 import dqn_agent_new
@@ -36,6 +37,9 @@ JaxDQNAgentNew.clip_value_min = -1
 
 create_optimizer = @dqn_agent.create_optimizer
 create_optimizer.learning_rate = 0.001
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 128
 create_optimizer.eps = 3.125e-4
 
 create_gym_environment.environment_name = 'LunarLander'
@@ -48,3 +52,6 @@ Runner.max_steps_per_episode = 1000  # Default max episode length.
 
 OutOfGraphReplayBuffer.replay_capacity = 50000
 OutOfGraphReplayBuffer.batch_size = 128
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 128
