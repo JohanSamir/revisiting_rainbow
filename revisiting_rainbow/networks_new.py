@@ -268,3 +268,83 @@ class QuantileNetwork(nn.Module):
 
 
     return atari_lib.RainbowNetworkType(q_values, logits, probabilities)
+
+#---------------------------------------------< IQ-Network >----------------------------------------------------------
+@gin.configurable
+class ImplicitQuantileNetwork(nn.Module):
+  """Jax DQN network for Cartpole."""
+     
+  def apply(self, x, num_actions, net_conf, env, hidden_layer, neurons, noisy, quantile_embedding_dim, num_quantiles, rng):
+    #initializer = jax.nn.initializers.variance_scaling(
+    #    scale=1.0 / jnp.sqrt(3.0),
+    #    mode='fan_in',
+    #    distribution='uniform')
+
+    initializer = nn.initializers.xavier_uniform()
+
+    if net_conf == 'minatar':
+      x = x.squeeze(3)
+      x = x[None, ...]
+      x = x.astype(jnp.float32)
+      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=nn.initializers.xavier_uniform())
+      x = jax.nn.relu(x)
+      x = x.reshape((x.shape[0], -1))
+
+    elif net_conf == 'atari':
+      # We need to add a "batch dimension" as nn.Conv expects it, yet vmap will
+      # have removed the true batch dimension.
+      x = x[None, ...]
+      x = x.astype(jnp.float32) / 255.
+      x = nn.Conv(x, features=32, kernel_size=(8, 8), strides=(4, 4),
+                  kernel_init=nn.initializers.xavier_uniform())
+      x = jax.nn.relu(x)
+      x = nn.Conv(x, features=64, kernel_size=(4, 4), strides=(2, 2),
+                  kernel_init=nn.initializers.xavier_uniform())
+      x = jax.nn.relu(x)
+      x = nn.Conv(x, features=64, kernel_size=(3, 3), strides=(1, 1),
+                  kernel_init=nn.initializers.xavier_uniform())
+      x = jax.nn.relu(x)
+      x = x.reshape((x.shape[0], -1))  # flatten
+
+    elif net_conf == 'classic':
+      #classic environments
+      x = x[None, ...]
+      x = x.astype(jnp.float32)
+      x = x.reshape((x.shape[0], -1))
+
+    if env is not None and env in env_inf:
+      x = x - env_inf[env]['MIN_VALS']
+      x /= env_inf[env]['MAX_VALS'] - env_inf[env]['MIN_VALS']
+      x = 2.0 * x - 1.0
+
+    if noisy:
+      def net(x, features):
+        return NoisyNetwork(x, features)
+    else:
+      def net(x, features):
+        return nn.Dense(x, features, kernel_init=nn.initializers.xavier_uniform())
+
+    for _ in range(hidden_layer):
+      x = net(x, features=neurons)
+      x = jax.nn.relu(x)
+
+    state_vector_length = x.shape[-1]
+    state_net_tiled = jnp.tile(x, [num_quantiles, 1])
+    quantiles_shape = [num_quantiles, 1]
+    quantiles = jax.random.uniform(rng, shape=quantiles_shape)
+    quantile_net = jnp.tile(quantiles, [1, quantile_embedding_dim])
+    quantile_net = (
+        jnp.arange(1, quantile_embedding_dim + 1, 1).astype(jnp.float32)
+        * onp.pi
+        * quantile_net)
+    quantile_net = jnp.cos(quantile_net)
+    quantile_net = nn.Dense(quantile_net,
+                            #features=state_vector_length
+                            features=state_vector_length,
+                            kernel_init=initializer)
+    quantile_net = jax.nn.relu(quantile_net)
+    x = state_net_tiled * quantile_net
+    x = nn.Dense(x, features=512, kernel_init=initializer)
+    x = jax.nn.relu(x)
+    quantile_values = nn.Dense(x, features=num_actions, kernel_init=initializer)
+    return atari_lib.ImplicitQuantileNetworkType(quantile_values, quantiles)

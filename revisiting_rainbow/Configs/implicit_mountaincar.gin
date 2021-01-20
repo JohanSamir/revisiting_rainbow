@@ -1,0 +1,58 @@
+import dopamine.jax.agents.implicit_quantile.implicit_quantile_agent
+import dopamine.discrete_domains.run_experiment
+import dopamine.replay_memory.circular_replay_buffer
+
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.jax.networks
+import dopamine.discrete_domains.gym_lib
+
+import networks_new
+import implicit_quantile_agent_new
+
+JaxImplicitQuantileAgentNew.observation_shape = %gym_lib.MOUNTAINCAR_OBSERVATION_SHAPE
+JaxImplicitQuantileAgentNew.observation_dtype = %gym_lib.MOUNTAINCAR_OBSERVATION_DTYPE
+JaxImplicitQuantileAgentNew.stack_size = %gym_lib.MOUNTAINCAR_STACK_SIZE
+JaxImplicitQuantileAgentNew.gamma = 0.99
+JaxImplicitQuantileAgentNew.update_horizon = 3
+JaxImplicitQuantileAgentNew.min_replay_history = 500 # agent steps
+JaxImplicitQuantileAgentNew.update_period = 2
+JaxImplicitQuantileAgentNew.target_update_period = 100 # agent step
+JaxImplicitQuantileAgentNew.epsilon_train=0.01
+JaxImplicitQuantileAgentNew.epsilon_eval=0.001
+JaxImplicitQuantileAgentNew.epsilon_decay_period=250000
+JaxImplicitQuantileAgentNew.summary_writer=None
+JaxImplicitQuantileAgentNew.summary_writing_frequency=500
+
+JaxImplicitQuantileAgentNew.net_conf = 'classic'
+JaxImplicitQuantileAgentNew.env = None #'MountainCar'
+JaxImplicitQuantileAgentNew.hidden_layer = 2
+JaxImplicitQuantileAgentNew.neurons = 512
+JaxImplicitQuantileAgentNew.noisy = False
+
+JaxImplicitQuantileAgentNew.tau = 0.03#0.03
+JaxImplicitQuantileAgentNew.alpha = 0.9 #1
+JaxImplicitQuantileAgentNew.clip_value_min = -1#-10
+JaxImplicitQuantileAgentNew.kappa = 1.0
+JaxImplicitQuantileAgentNew.num_tau_samples = 32
+JaxImplicitQuantileAgentNew.num_tau_prime_samples = 32
+JaxImplicitQuantileAgentNew.num_quantile_samples = 32
+JaxImplicitQuantileAgentNew.quantile_embedding_dim = 64
+JaxImplicitQuantileAgentNew.optimizer = 'adam'
+JaxImplicitQuantileAgentNew.replay_scheme = 'prioritized'
+JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
+JaxImplicitQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon #@dqn_agent.linearly_decaying_epsilon
+JaxImplicitQuantileAgentNew.target_opt = 0 # 0 target_quantile and 1 munchau_target_quantile 
+
+create_optimizer.learning_rate = 0.001
+create_optimizer.eps = 3.125e-4
+
+create_gym_environment.environment_name = 'MountainCar'
+create_gym_environment.version = 'v0'
+TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
+
+Runner.num_iterations = 30
+Runner.training_steps = 1000
+Runner.max_steps_per_episode = 600
+
+OutOfGraphReplayBuffer.replay_capacity = 50000
+OutOfGraphReplayBuffer.batch_size = 42
