@@ -10,7 +10,7 @@ import networks_new
 import implicit_quantile_agent_new
 
 JaxImplicitQuantileAgentNew.observation_shape = %gym_lib.CARTPOLE_OBSERVATION_SHAPE
-JaxImplicitQuantileAgentNew.observation_dtype = %gym_lib.CARTPOLE_OBSERVATION_DTYPE
+JaxImplicitQuantileAgentNew.observation_dtype = %jax_networks.CARTPOLE_OBSERVATION_DTYPE
 JaxImplicitQuantileAgentNew.stack_size = %gym_lib.CARTPOLE_STACK_SIZE
 JaxImplicitQuantileAgentNew.gamma = 0.99
 JaxImplicitQuantileAgentNew.update_horizon = 3

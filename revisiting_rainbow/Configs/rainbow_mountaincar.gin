@@ -8,7 +8,7 @@ import networks_new
 import rainbow_agent_new
 
 JaxDQNAgent.observation_shape = %gym_lib.MOUNTAINCAR_OBSERVATION_SHAPE
-JaxDQNAgent.observation_dtype = %gym_lib.MOUNTAINCAR_OBSERVATION_DTYPE
+JaxDQNAgent.observation_dtype = %jax_networks.MOUNTAINCAR_OBSERVATION_DTYPE
 JaxDQNAgent.stack_size = %gym_lib.MOUNTAINCAR_STACK_SIZE
 
 JaxDQNAgent.gamma = 0.99

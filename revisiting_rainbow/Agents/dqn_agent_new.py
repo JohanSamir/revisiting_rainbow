@@ -138,6 +138,48 @@ def target_m_dqn(model, target_network, states, next_states, actions,rewards, te
   
   return jax.lax.stop_gradient(modified_bellman)
 
+
+@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 9, 10, 11, 12))
+def select_action(network, state, rng, num_actions, eval_mode,
+                  epsilon_eval, epsilon_train, epsilon_decay_period,
+                  training_steps, min_replay_history, epsilon_fn, interact,tau, model):
+
+  epsilon = jnp.where(eval_mode,
+                      epsilon_eval,
+                      epsilon_fn(epsilon_decay_period,
+                                 training_steps,
+                                 min_replay_history,
+                                 epsilon_train))
+
+  if interact == 'stochastic':
+
+    state = jnp.expand_dims(state, axis=0)
+    net_outputs = jax.vmap(model.target, in_axes=(0))(state).q_values
+    #print('net_outputs:',net_outputs.shape,net_outputs)
+    net_outputs = jnp.squeeze(net_outputs)
+
+    #print('net_outputs:',net_outputs.shape,net_outputs)
+
+    policy_logits =  stable_scaled_log_softmax(net_outputs, tau, axis=0)
+    #print('policy_logits:',policy_logits.shape,policy_logits)
+    
+    key = jax.random.PRNGKey(seed=0)
+    stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
+    #print('stochastic_action:',stochastic_action.shape,stochastic_action)
+    #print('interact: stochastic')
+    selected_action = stochastic_action
+
+  elif interact == 'greedy':
+    selected_action = jnp.argmax(network(state).q_values, axis=1)[0]
+  else:
+    print('error interact')
+
+  rng, rng1, rng2 = jax.random.split(rng, num=3)
+  p = jax.random.uniform(rng1)
+  return rng, jnp.where(p <= epsilon,
+                        jax.random.randint(rng2, (), 0, num_actions),
+                        selected_action)
+
 @gin.configurable
 class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
   """A compact implementation of a simplified Rainbow agent."""
@@ -148,6 +190,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                tau,
                alpha=1,
                clip_value_min=-10,
+               interact = 'greedy',
 
                net_conf = None,
                env = "CartPole", 
@@ -213,6 +256,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
     self._tau = tau
     self._alpha = alpha
     self._clip_value_min = clip_value_min
+    self._interact = interact
 
     super(JaxDQNAgentNew, self).__init__(
         num_actions= num_actions,
@@ -303,3 +347,70 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
       self._replay.add(last_observation, action, reward, is_terminal, priority)
     else:
       self._replay.add(last_observation, action, reward, is_terminal)
+
+  def begin_episode(self, observation):
+    """Returns the agent's first action for this episode.
+    Args:
+      observation: numpy array, the environment's initial observation.
+    Returns:
+      int, the selected action.
+    """
+    self._reset_state()
+    self._record_observation(observation)
+
+    if not self.eval_mode:
+      self._train_step()
+
+    self._rng, self.action = select_action(self.online_network,
+                                           self.state,
+                                           self._rng,
+                                           self.num_actions,
+                                           self.eval_mode,
+                                           self.epsilon_eval,
+                                           self.epsilon_train,
+                                           self.epsilon_decay_period,
+                                           self.training_steps,
+                                           self.min_replay_history,
+                                           self.epsilon_fn,
+                                           self._interact,
+                                           self._tau,
+                                           self.optimizer)
+    self.action = onp.asarray(self.action)
+    return self.action
+
+  def step(self, reward, observation):
+    """Records the most recent transition and returns the agent's next action.
+    We store the observation of the last time step since we want to store it
+    with the reward.
+    Args:
+      reward: float, the reward received from the agent's most recent action.
+      observation: numpy array, the most recent observation.
+    Returns:
+      int, the selected action.
+    """
+    self._last_observation = self._observation
+    self._record_observation(observation)
+
+    if not self.eval_mode:
+      self._store_transition(self._last_observation, self.action, reward, False)
+      self._train_step()
+
+    self._rng, self.action = select_action(self.online_network,
+                                           self.state,
+                                           self._rng,
+                                           self.num_actions,
+                                           self.eval_mode,
+                                           self.epsilon_eval,
+                                           self.epsilon_train,
+                                           self.epsilon_decay_period,
+                                           self.training_steps,
+                                           self.min_replay_history,
+                                           self.epsilon_fn,
+                                           self._interact,
+                                           self._tau,
+                                           self.optimizer)
+    self.action = onp.asarray(self.action)
+    return self.action
+
+
+
