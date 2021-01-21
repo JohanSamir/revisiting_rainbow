@@ -31,9 +31,9 @@ JaxDQNAgentNew.noisy = False
 JaxDQNAgentNew.dueling = False
 JaxDQNAgentNew.network = @networks_new.DQNNetwork
 JaxDQNAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
-JaxDQNAgentNew.tau = 10 #0.03
-JaxDQNAgentNew.alpha = 1#0.9 
-JaxDQNAgentNew.clip_value_min = -1e3 #-1
+JaxDQNAgentNew.tau = 100
+JaxDQNAgentNew.alpha = 1
+JaxDQNAgentNew.clip_value_min = -1e3
 JaxDQNAgentNew.interact = 'stochastic'#'stochastic'#'greedy'
 
 create_optimizer = @dqn_agent.create_optimizer
