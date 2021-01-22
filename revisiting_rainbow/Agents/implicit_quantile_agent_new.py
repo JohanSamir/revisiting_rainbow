@@ -245,10 +245,10 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
   return rng, optimizer, loss
 
 
-@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8, 10, 11))
+@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8, 10, 11, 12, 13))
 def select_action(network, state, rng, num_quantile_samples, num_actions,
                   eval_mode, epsilon_eval, epsilon_train, epsilon_decay_period,
-                  training_steps, min_replay_history, epsilon_fn):
+                  training_steps, min_replay_history, epsilon_fn, interact,tau, model):
   """Select an action from the set of available actions.
 
   Chooses an action randomly with probability self._calculate_epsilon(), and
@@ -280,16 +280,48 @@ def select_action(network, state, rng, num_quantile_samples, num_actions,
                                  training_steps,
                                  min_replay_history,
                                  epsilon_train))
-
   rng, rng1, rng2 = jax.random.split(rng, num=3)
-  p = jax.random.uniform(rng1)
-  return rng, jnp.where(p <= epsilon,
-                        jax.random.randint(rng2, (), 0, num_actions),
-                        jnp.argmax(jnp.mean(
+
+  if interact == 'stochastic':
+
+    state = jnp.expand_dims(state, axis=0)
+    print('net_outputs:',net_outputs.shape,net_outputs)
+    net_outputs = network(state, num_quantiles=num_quantile_samples, rng=rng2).quantile_values
+    print('net_outputs:',net_outputs.shape,net_outputs)
+    q_values = jnp.mean(net_outputs,axis=0)
+    print('net_outputs:',net_outputs.shape,net_outputs)
+    policy_logits = jax.nn.softmax(q_values/tau, axis=0)
+    print('net_outputs:',net_outputs.shape,net_outputs)
+    
+    #state = jnp.expand_dims(state, axis=0)
+    #net_outputs = jax.vmap(model.target, in_axes=(0))(state).q_values
+    #print('net_outputs:',net_outputs.shape,net_outputs)
+    #net_outputs = jnp.squeeze(net_outputs)
+
+    #print('net_outputs:',net_outputs.shape,net_outputs)
+
+    #policy_logits =  stable_scaled_log_softmax(net_outputs, tau, axis=0)
+    #print('policy_logits:',policy_logits.shape,policy_logits)
+    
+    key = jax.random.PRNGKey(seed=0)
+    stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
+    print('stochastic_action:',stochastic_action.shape,stochastic_action)
+    #print('interact: stochastic')
+    selected_action = stochastic_action
+
+  elif interact == 'greedy':
+    selected_action = jnp.argmax(jnp.mean(
                             network(state,
                                     num_quantiles=num_quantile_samples,
                                     rng=rng2).quantile_values, axis=0),
-                                   axis=0))
+                                   axis=0)
+  else:
+    print('error interact')
+  
+  p = jax.random.uniform(rng1)
+  return rng, jnp.where(p <= epsilon,
+                        jax.random.randint(rng2, (), 0, num_actions),
+                        selected_action)
 
 
 @gin.configurable
@@ -303,6 +335,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                alpha=1,
                clip_value_min=-10,
                target_opt=0,
+               interact = 'greedy',
 
                net_conf = None,
                env = "CartPole",
@@ -392,6 +425,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._alpha = alpha
     self._clip_value_min = clip_value_min
     self._target_opt = target_opt
+    self._interact = interact
 
     self.kappa = kappa
     # num_tau_samples = N below equation (3) in the paper.
@@ -473,7 +507,10 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                            self.epsilon_decay_period,
                                            self.training_steps,
                                            self.min_replay_history,
-                                           self.epsilon_fn)
+                                           self.epsilon_fn,
+                                           self._interact,
+                                           self._tau,
+                                           self.optimizer)
     self.action = onp.asarray(self.action)
     return self.action
 
@@ -508,7 +545,10 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                            self.epsilon_decay_period,
                                            self.training_steps,
                                            self.min_replay_history,
-                                           self.epsilon_fn)
+                                           self.epsilon_fn,
+                                           self._interact,
+                                           self._tau,
+                                           self.optimizer)
     self.action = onp.asarray(self.action)
     return self.action
 
