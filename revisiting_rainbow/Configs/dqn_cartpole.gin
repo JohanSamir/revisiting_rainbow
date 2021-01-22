@@ -25,7 +25,7 @@ JaxDQNAgentNew.normalize_obs = True
 JaxDQNAgentNew.hidden_layer = 2
 JaxDQNAgentNew.neurons = 512
 JaxDQNAgentNew.prioritized = False
-JaxDQNAgentNew.target_opt = 2 #0:DQN 1:Double DQN 2:Munchausen DQN
+JaxDQNAgentNew.target_opt = 0 #0:DQN 1:Double DQN 2:Munchausen DQN
 JaxDQNAgentNew.mse_inf = False
 JaxDQNAgentNew.noisy = False
 JaxDQNAgentNew.dueling = False
@@ -34,7 +34,7 @@ JaxDQNAgentNew.alpha = 1
 JaxDQNAgentNew.clip_value_min = -1e3
 JaxDQNAgentNew.network = @networks_new.DQNNetwork
 JaxDQNAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
-JaxDQNAgentNew.interact = 'stochastic'#'stochastic'#'greedy'
+JaxDQNAgentNew.interact = 'greedy'#'stochastic'#'greedy'
 
 create_optimizer = @dqn_agent.create_optimizer
 create_optimizer.learning_rate = 0.001

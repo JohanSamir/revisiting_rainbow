@@ -34,13 +34,10 @@ JaxDQNAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
 JaxDQNAgentNew.tau = 100 
 JaxDQNAgentNew.alpha = 1
 JaxDQNAgentNew.clip_value_min = -1e3
-JaxDQNAgentNew.interact = 'stochastic'#'stochastic'#'greedy'
+JaxDQNAgentNew.interact = 'greedy'#'stochastic'#'greedy'
 
 create_optimizer = @dqn_agent.create_optimizer
 create_optimizer.learning_rate = 0.001
-
-OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
-OutOfGraphPrioritizedReplayBuffer.batch_size = 128
 create_optimizer.eps = 3.125e-4
 
 create_gym_environment.environment_name = 'LunarLander'
