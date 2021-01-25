@@ -122,7 +122,8 @@ def munchau_target_quantile_values_fun(online_network, target_network,
                            num_tau_prime_samples, num_quantile_samples,
                            cumulative_gamma, double_dqn, rng,tau,alpha,clip_value_min,num_actions):
   #Build the munchausen target for return values at given quantiles.
-  
+  del double_dqn
+
   rewards = jnp.tile(rewards, [num_tau_prime_samples])
   is_terminal_multiplier = 1. - terminals.astype(jnp.float32)
   # Incorporate terminal state to discount factor.
@@ -342,6 +343,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                hidden_layer=2, 
                neurons=512,
                noisy = False,
+               dueling = False,
 
                observation_shape=dqn_agent.NATURE_DQN_OBSERVATION_SHAPE,
                observation_dtype=dqn_agent.NATURE_DQN_DTYPE,
@@ -420,6 +422,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._hidden_layer = hidden_layer
     self._neurons=neurons 
     self._noisy = noisy
+    self._dueling = dueling
 
     self._tau = tau
     self._alpha = alpha
@@ -450,6 +453,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                 hidden_layer=self._hidden_layer, 
                                 neurons=self._neurons,
                                 noisy=self._noisy,
+                                dueling=self._dueling,
                                 quantile_embedding_dim=quantile_embedding_dim),
         gamma=gamma,
         update_horizon=update_horizon,

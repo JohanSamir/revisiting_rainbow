@@ -9,30 +9,26 @@ import dopamine.discrete_domains.gym_lib
 import networks_new
 import implicit_quantile_agent_new
 
-JaxImplicitQuantileAgentNew.observation_shape = %gym_lib.LUNAR_OBSERVATION_SHAPE
-JaxImplicitQuantileAgentNew.observation_dtype =  %jax_networks.LUNAR_OBSERVATION_DTYPE
-JaxImplicitQuantileAgentNew.stack_size = %gym_lib.LUNAR_STACK_SIZE
-
+JaxImplicitQuantileAgentNew.observation_shape = %gym_lib.ACROBOT_OBSERVATION_SHAPE
+JaxImplicitQuantileAgentNew.observation_dtype =  %jax_networks.ACROBOT_OBSERVATION_DTYPE
+JaxImplicitQuantileAgentNew.stack_size = %gym_lib.ACROBOT_STACK_SIZE
 JaxImplicitQuantileAgentNew.gamma = 0.99
 JaxImplicitQuantileAgentNew.update_horizon = 1#3
 JaxImplicitQuantileAgentNew.min_replay_history = 500 # agent steps
 JaxImplicitQuantileAgentNew.update_period = 2
 JaxImplicitQuantileAgentNew.target_update_period = 100 # agent step
 
+
 JaxImplicitQuantileAgentNew.net_conf = 'classic'
-JaxImplicitQuantileAgentNew.env = 'LunarLander'
+JaxImplicitQuantileAgentNew.env = 'Acrobot'
 JaxImplicitQuantileAgentNew.hidden_layer = 2
 JaxImplicitQuantileAgentNew.neurons = 512
 JaxImplicitQuantileAgentNew.noisy = False
 JaxImplicitQuantileAgentNew.double_dqn = False
 JaxImplicitQuantileAgentNew.dueling = False
-JaxImplicitQuantileAgentNew.replay_scheme = 'uniform' #'prioritized'
+JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'#'prioritized'
 JaxImplicitQuantileAgentNew.interact = 'greedy'
 JaxImplicitQuantileAgentNew.kappa = 1.0
-
-JaxImplicitQuantileAgentNew.tau = 100#0.03#0.03
-JaxImplicitQuantileAgentNew.alpha = 1#0.9 #1
-JaxImplicitQuantileAgentNew.clip_value_min = -1e3#-1#-10
 
 JaxImplicitQuantileAgentNew.num_tau_samples = 32
 JaxImplicitQuantileAgentNew.num_tau_prime_samples = 32
@@ -44,16 +40,20 @@ JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
 JaxImplicitQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon #@dqn_agent.linearly_decaying_epsilon
 JaxImplicitQuantileAgentNew.target_opt = 0 # 0 target_quantile and 1 munchau_target_quantile 
 
-create_optimizer.learning_rate = 0.001
+JaxImplicitQuantileAgentNew.tau = 100 #0.03#0.03
+JaxImplicitQuantileAgentNew.alpha = 1 #0.9 #1
+JaxImplicitQuantileAgentNew.clip_value_min = -1e3 #-1#-10
+
+create_optimizer.learning_rate = 0.0001
 create_optimizer.eps = 3.125e-4
 
-create_gym_environment.environment_name = 'LunarLander'
-create_gym_environment.version = 'v2'
-TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
+create_gym_environment.environment_name = 'Acrobot'
+create_gym_environment.version = 'v1'
 
+TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
 Runner.num_iterations = 30
-Runner.training_steps = 4000
-Runner.max_steps_per_episode = 1000
+Runner.training_steps = 1000
+Runner.max_steps_per_episode = 200
 
 OutOfGraphReplayBuffer.replay_capacity = 50000
 OutOfGraphReplayBuffer.batch_size = 128

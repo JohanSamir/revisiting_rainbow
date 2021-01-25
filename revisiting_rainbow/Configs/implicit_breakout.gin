@@ -1,0 +1,59 @@
+import dopamine.jax.agents.implicit_quantile.implicit_quantile_agent
+import dopamine.discrete_domains.run_experiment
+import dopamine.replay_memory.circular_replay_buffer
+
+import dopamine.jax.agents.dqn.dqn_agent
+import dopamine.jax.networks
+import dopamine.discrete_domains.gym_lib
+
+import networks_new
+import implicit_quantile_agent_new
+import minatar_env
+
+JaxImplicitQuantileAgentNew.observation_shape =  %minatar_env.BREAKOUT_SHAPE
+JaxImplicitQuantileAgentNew.observation_dtype = %minatar_env.DTYPE
+JaxImplicitQuantileAgentNew.stack_size = 1
+JaxImplicitQuantileAgentNew.gamma = 0.99
+JaxImplicitQuantileAgentNew.update_horizon = 1
+JaxImplicitQuantileAgentNew.min_replay_history = 1000 # agent steps
+JaxImplicitQuantileAgentNew.update_period = 4
+JaxImplicitQuantileAgentNew.target_update_period = 1000 # agent step
+
+
+JaxImplicitQuantileAgentNew.net_conf = 'minatar'
+JaxImplicitQuantileAgentNew.env = None
+JaxImplicitQuantileAgentNew.hidden_layer = 0
+JaxImplicitQuantileAgentNew.neurons = None
+JaxImplicitQuantileAgentNew.noisy = False
+JaxImplicitQuantileAgentNew.double_dqn = False
+JaxImplicitQuantileAgentNew.dueling = False
+JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized
+JaxImplicitQuantileAgentNew.interact = 'greedy'
+JaxImplicitQuantileAgentNew.kappa = 1.0
+
+JaxImplicitQuantileAgentNew.num_tau_samples = 32
+JaxImplicitQuantileAgentNew.num_tau_prime_samples = 32
+JaxImplicitQuantileAgentNew.num_quantile_samples = 32
+JaxImplicitQuantileAgentNew.quantile_embedding_dim = 64
+
+JaxImplicitQuantileAgentNew.tau = 0.03
+JaxImplicitQuantileAgentNew.alpha = 0.9
+JaxImplicitQuantileAgentNew.clip_value_min = -1
+
+JaxImplicitQuantileAgentNew.optimizer = 'adam'
+JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
+JaxImplicitQuantileAgentNew.epsilon_fn = @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
+JaxImplicitQuantileAgentNew.target_opt = 0 # 0 target_quantile and 1 munchau_target_quantile 
+
+create_optimizer.learning_rate = 0.0001
+create_optimizer.eps =0.0003125
+
+create_minatar_env.game_name ='breakout'
+
+TrainRunner.create_environment_fn =  @minatar_env.create_minatar_env
+Runner.num_iterations = 10
+Runner.training_steps = 1000000
+Runner.max_steps_per_episode = 100000000
+
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 100000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 32

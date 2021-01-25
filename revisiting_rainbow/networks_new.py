@@ -274,7 +274,7 @@ class QuantileNetwork(nn.Module):
 class ImplicitQuantileNetwork(nn.Module):
   """Jax DQN network for Cartpole."""
      
-  def apply(self, x, num_actions, net_conf, env, hidden_layer, neurons, noisy, quantile_embedding_dim, num_quantiles, rng):
+  def apply(self, x, num_actions, net_conf, env, hidden_layer, neurons, noisy, dueling, quantile_embedding_dim, num_quantiles, rng):
     #initializer = jax.nn.initializers.variance_scaling(
     #    scale=1.0 / jnp.sqrt(3.0),
     #    mode='fan_in',
@@ -344,7 +344,17 @@ class ImplicitQuantileNetwork(nn.Module):
                             kernel_init=initializer)
     quantile_net = jax.nn.relu(quantile_net)
     x = state_net_tiled * quantile_net
-    x = nn.Dense(x, features=512, kernel_init=initializer)
-    x = jax.nn.relu(x)
-    quantile_values = nn.Dense(x, features=num_actions, kernel_init=initializer)
+    
+    print('x:',x.shape,x)
+    #x = nn.Dense(x, features=512, kernel_init=initializer)
+    #x = jax.nn.relu(x)
+    #quantile_values = nn.Dense(x, features=num_actions, kernel_init=initializer)
+
+    adv = net(x,features=num_actions)
+    val = net(x, features=1)
+    dueling_q = val + (adv - (jnp.mean(adv, -1, keepdims=True)))
+    non_dueling_q = net(x, features=num_actions)
+    quantile_values = jnp.where(dueling, dueling_q, non_dueling_q)
+    print('quantile_values:',quantile_values.shape,quantile_values)
+
     return atari_lib.ImplicitQuantileNetworkType(quantile_values, quantiles)
