@@ -26,7 +26,7 @@ JaxImplicitQuantileAgentNew.neurons = 512
 JaxImplicitQuantileAgentNew.noisy = False
 JaxImplicitQuantileAgentNew.double_dqn = False
 JaxImplicitQuantileAgentNew.dueling = False
-JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized
+JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized or uniform
 JaxImplicitQuantileAgentNew.interact = 'greedy'
 JaxImplicitQuantileAgentNew.kappa = 1.0
 

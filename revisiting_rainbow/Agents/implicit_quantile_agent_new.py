@@ -26,6 +26,7 @@ import functools
 
 from dopamine.jax import networks
 from dopamine.jax.agents.dqn import dqn_agent
+from dopamine.replay_memory import prioritized_replay_buffer 
 from flax import nn
 import gin
 import jax
@@ -164,7 +165,7 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
           terminals, target_opt, num_tau_samples, num_tau_prime_samples,
           num_quantile_samples, cumulative_gamma, double_dqn, kappa, tau,alpha,clip_value_min, num_actions,rng):
   """Run a training step."""
-  def loss_fn(model, rng_input, target_quantile_vals):
+  def loss_fn(model, rng_input, target_quantile_vals,  mean_loss=True):
     model_output = jax.vmap(
         lambda m, x, y, z: m(x=x, num_quantiles=y, rng=z),
         in_axes=(None, 0, None, None))(
@@ -200,9 +201,13 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
     # average over target quantile value (num_tau_prime_samples) dimension.
     # Shape: batch_size x num_tau_prime_samples x 1.
     loss = jnp.sum(quantile_huber_loss, axis=2)
-    loss = jnp.mean(loss, axis=1)
-    return jnp.mean(loss)
-  print('target_opt:',target_opt)
+    loss = jnp.squeeze(jnp.mean(loss, axis=1), axis=-1)
+
+    if mean_loss:
+      loss = jnp.mean(loss)
+
+    return loss
+
   if target_opt == 0:
       rng, target_quantile_vals = target_quantile_values_fun(
       optimizer.target,
@@ -241,9 +246,11 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
 
   grad_fn = jax.value_and_grad(loss_fn)
   rng, rng_input = jax.random.split(rng)
-  loss, grad = grad_fn(optimizer.target, rng_input, target_quantile_vals)
+  mean_loss, grad = grad_fn(optimizer.target, rng_input, target_quantile_vals)
+  loss = loss_fn(optimizer.target, rng_input, target_quantile_vals, mean_loss=False)
   optimizer = optimizer.apply_gradient(grad)
-  return rng, optimizer, loss
+
+  return rng, optimizer, loss, mean_loss
 
 
 @functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8, 10, 11, 12, 13))
@@ -431,6 +438,8 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._interact = interact
 
     self.kappa = kappa
+    self._replay_scheme = replay_scheme
+
     # num_tau_samples = N below equation (3) in the paper.
     self.num_tau_samples = num_tau_samples
     # num_tau_prime_samples = N' below equation (3) in the paper.
@@ -469,6 +478,8 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
         summary_writing_frequency=summary_writing_frequency)
 
     self._num_actions=num_actions
+    self._replay = self._build_replay_buffer()
+    #self._replay = self._build_replay_buffer_prioritized() if self._prioritized == 'uniform' or self._prioritized == 'prioritized' else self._build_replay_buffer()
 
   def _create_network(self, name):
     r"""Builds an Implicit Quantile ConvNet.
@@ -582,7 +593,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     if self._replay.add_count > self.min_replay_history:
       if self.training_steps % self.update_period == 0:
         self._sample_from_replay_buffer()
-        self._rng, self.optimizer, loss = train(
+        self._rng, self.optimizer, loss, mean_loss= train(
             self.target_network,
             self.optimizer,
             self.replay_elements['state'],
@@ -624,14 +635,14 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
           # Weight the loss by the inverse priorities.
           loss = loss_weights * loss
           #mean_loss 
-          loss= jnp.mean(loss)
+          mean_loss = jnp.mean(loss)
 
         if (self.summary_writer is not None and
             self.training_steps > 0 and
             self.training_steps % self.summary_writing_frequency == 0):
           summary = tf.compat.v1.Summary(value=[
-              tf.compat.v1.Summary.Value(tag='QuantileLoss',
-                                         simple_value=loss)])
+              tf.compat.v1.Summary.Value(tag='ImplicitLoss',
+                                         simple_value=mean_loss)])
           self.summary_writer.add_summary(summary, self.training_steps)
       if self.training_steps % self.target_update_period == 0:
         self._sync_weights()
