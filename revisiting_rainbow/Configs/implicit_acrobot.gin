@@ -53,7 +53,7 @@ create_gym_environment.version = 'v1'
 TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
 Runner.num_iterations = 30
 Runner.training_steps = 1000
-Runner.max_steps_per_episode = 200
+Runner.max_steps_per_episode = 500
 
 OutOfGraphReplayBuffer.replay_capacity = 50000
 OutOfGraphReplayBuffer.batch_size = 128
