@@ -1,6 +1,6 @@
 import dopamine.jax.agents.implicit_quantile.implicit_quantile_agent
 import dopamine.discrete_domains.run_experiment
-import dopamine.replay_memory.circular_replay_buffer
+import dopamine.replay_memory.prioritized_replay_buffer
 
 import dopamine.jax.agents.dqn.dqn_agent
 import dopamine.jax.networks

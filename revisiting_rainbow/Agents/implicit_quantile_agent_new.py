@@ -556,6 +556,19 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self.action = onp.asarray(self.action)
     return self.action
 
+  def _build_replay_buffer(self):
+    """Creates the replay buffer used by the agent."""
+    if self._replay_scheme not in ['uniform', 'prioritized']:
+      raise ValueError('Invalid replay scheme: {}'.format(self._replay_scheme))
+    # Both replay schemes use the same data structure, but the 'uniform' scheme
+    # sets all priorities to the same value (which yields uniform sampling).
+    return prioritized_replay_buffer.OutOfGraphPrioritizedReplayBuffer(
+        observation_shape=self.observation_shape,
+        stack_size=self.stack_size,
+        update_horizon=self.update_horizon,
+        gamma=self.gamma,
+        observation_dtype=self.observation_dtype)
+
   def _train_step(self):
     """Runs a single training step.
 
@@ -590,6 +603,29 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
             self._num_actions,
             self._rng)
 
+        if self._replay_scheme == 'prioritized':
+          # The original prioritized experience replay uses a linear exponent
+          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
+          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
+          # suggested a fixed exponent actually performs better, except on Pong.
+          probs = self.replay_elements['sampling_probabilities']
+          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
+          loss_weights /= jnp.max(loss_weights)
+
+          # Rainbow and prioritized replay are parametrized by an exponent
+          # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
+          # leave it as is here, using the more direct sqrt(). Taking the square
+          # root "makes sense", as we are dealing with a squared loss.  Add a
+          # small nonzero value to the loss to avoid 0 priority items. While
+          # technically this may be okay, setting all items to 0 priority will
+          # cause troubles, and also result in 1.0 / 0.0 = NaN correction terms.
+          self._replay.set_priority(self.replay_elements['indices'],
+                                    jnp.sqrt(loss + 1e-10))
+          # Weight the loss by the inverse priorities.
+          loss = loss_weights * loss
+          #mean_loss 
+          loss= jnp.mean(loss)
+
         if (self.summary_writer is not None and
             self.training_steps > 0 and
             self.training_steps % self.summary_writing_frequency == 0):
@@ -601,3 +637,34 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
         self._sync_weights()
 
     self.training_steps += 1
+
+
+
+  def _store_transition(self,
+                        last_observation,
+                        action,
+                        reward,
+                        is_terminal,
+                        priority=None):
+    """Stores a transition when in training mode.
+    Stores the following tuple in the replay buffer (last_observation, action,
+    reward, is_terminal, priority).
+    Args:
+      last_observation: Last observation, type determined via observation_type
+        parameter in the replay_memory constructor.
+      action: An integer, the action taken.
+      reward: A float, the reward.
+      is_terminal: Boolean indicating if the current state is a terminal state.
+      priority: Float. Priority of sampling the transition. If None, the default
+        priority will be used. If replay scheme is uniform, the default priority
+        is 1. If the replay scheme is prioritized, the default priority is the
+        maximum ever seen [Schaul et al., 2015].
+    """
+    if priority is None:
+      if self._replay_scheme == 'uniform':
+        priority = 1.
+      else:
+        priority = self._replay.sum_tree.max_recorded_priority
+
+    if not self.eval_mode:
+      self._replay.add(last_observation, action, reward, is_terminal, priority)

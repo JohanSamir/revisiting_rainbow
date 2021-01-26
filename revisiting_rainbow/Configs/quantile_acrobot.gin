@@ -2,7 +2,6 @@ import dopamine.jax.agents.dqn.dqn_agent
 import dopamine.jax.networks
 import dopamine.discrete_domains.gym_lib
 import dopamine.discrete_domains.run_experiment
-import dopamine.discrete_domains.run_experiment
 import dopamine.replay_memory.prioritized_replay_buffer
 
 import networks_new

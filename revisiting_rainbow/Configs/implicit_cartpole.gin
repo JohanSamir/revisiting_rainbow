@@ -1,6 +1,6 @@
 import dopamine.jax.agents.implicit_quantile.implicit_quantile_agent
 import dopamine.discrete_domains.run_experiment
-import dopamine.replay_memory.circular_replay_buffer
+import dopamine.replay_memory.prioritized_replay_buffer
 
 import dopamine.jax.agents.dqn.dqn_agent
 import dopamine.jax.networks
@@ -55,5 +55,5 @@ Runner.num_iterations = 30
 Runner.training_steps = 1000
 Runner.max_steps_per_episode = 200
 
-OutOfGraphReplayBuffer.replay_capacity = 50000
-OutOfGraphReplayBuffer.batch_size = 128
+OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
+OutOfGraphPrioritizedReplayBuffer.batch_size = 128
