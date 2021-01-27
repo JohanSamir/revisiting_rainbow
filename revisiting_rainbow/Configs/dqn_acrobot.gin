@@ -2,7 +2,6 @@ import dopamine.discrete_domains.gym_lib
 import dopamine.jax.networks
 import dopamine.discrete_domains.run_experiment
 import dopamine.jax.agents.dqn.dqn_agent
-import dopamine.replay_memory.circular_replay_buffer
 import dopamine.replay_memory.prioritized_replay_buffer
 
 import networks_new
@@ -24,7 +23,7 @@ JaxDQNAgentNew.env = 'Acrobot'
 JaxDQNAgentNew.normalize_obs = True
 JaxDQNAgentNew.hidden_layer = 2
 JaxDQNAgentNew.neurons = 512
-JaxDQNAgentNew.prioritized = False
+JaxDQNAgentNew.replay_scheme = 'uniform' #'prioritized' or 'uniform'
 JaxDQNAgentNew.target_opt = 0 #0:DQN 1:Double DQN 2:Munchausen DQN
 JaxDQNAgentNew.mse_inf = False
 JaxDQNAgentNew.noisy = False
@@ -47,9 +46,6 @@ TrainRunner.create_environment_fn = @gym_lib.create_gym_environment
 Runner.num_iterations = 30
 Runner.training_steps = 1000
 Runner.max_steps_per_episode = 500
-
-OutOfGraphReplayBuffer.replay_capacity = 50000
-OutOfGraphReplayBuffer.batch_size = 128
 
 OutOfGraphPrioritizedReplayBuffer.replay_capacity = 50000
 OutOfGraphPrioritizedReplayBuffer.batch_size = 128

@@ -39,17 +39,19 @@ def mse_loss(targets, predictions):
 def train(target_network, optimizer, states, actions, next_states, rewards,
           terminals, cumulative_gamma,target_opt, mse_inf,tau,alpha,clip_value_min):
   """Run the training step."""
-  def loss_fn(model, target, mse_inf):
+  def loss_fn(model, target, mse_inf, mean_loss=True):
     q_values = jax.vmap(model, in_axes=(0))(states).q_values
     q_values = jnp.squeeze(q_values)
     replay_chosen_q = jax.vmap(lambda x, y: x[y])(q_values, actions)
-
+    
     if mse_inf:
-      loss = jnp.mean(jax.vmap(mse_loss)(target, replay_chosen_q))
+      loss = jax.vmap(mse_loss)(target, replay_chosen_q)
     else:
-      loss = jnp.mean(jax.vmap(dqn_agent.huber_loss)(target, replay_chosen_q))
-    return loss
+      loss = jax.vmap(dqn_agent.huber_loss)(target, replay_chosen_q)
 
+    if mean_loss:
+      loss = jnp.mean(loss)
+    return loss
 
   grad_fn = jax.value_and_grad(loss_fn)
 
@@ -65,9 +67,11 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
   else:
     print('error')
 
-  loss, grad = grad_fn(optimizer.target, target, mse_inf)
+  mean_loss, grad = grad_fn(optimizer.target, target, mse_inf)
+  loss = loss_fn(optimizer.target, target, mse_inf, mean_loss=False)
   optimizer = optimizer.apply_gradient(grad)
-  return optimizer, loss
+
+  return optimizer, loss, mean_loss
 
 def target_DDQN(model, target_network, next_states, rewards, terminals, cumulative_gamma):
   """Compute the target Q-value. Double DQN"""
@@ -197,7 +201,8 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                normalize_obs = True,
                hidden_layer=2, 
                neurons=512,
-               prioritized=False,
+               #prioritized=False,
+               replay_scheme='prioritized',
                noisy = False,
                dueling = False,
                target_opt=0,
@@ -271,16 +276,15 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
         optimizer=optimizer,
         epsilon_fn=dqn_agent.identity_epsilon if self._noisy == True else epsilon_fn)
 
-    self._prioritized=prioritized
+    self._replay_scheme = replay_scheme
     self._rng = jax.random.PRNGKey(0)
     state_shape = self.observation_shape + (self.stack_size,)
     self.state = onp.zeros(state_shape)
-    self._replay = self._build_replay_buffer_prioritized() if self._prioritized == True else self._build_replay_buffer()
     self._optimizer_name = optimizer
     self._build_networks_and_optimizer()
 
 
-  def _build_replay_buffer_prioritized(self):
+  def _build_replay_buffer(self):
     """Creates the prioritized replay buffer used by the agent."""
     return prioritized_replay_buffer.OutOfGraphPrioritizedReplayBuffer(
         observation_shape=self.observation_shape,
@@ -305,7 +309,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
       if self.training_steps % self.update_period == 0:
         self._sample_from_replay_buffer()
 
-        self.optimizer, loss = train(self.target_network,
+        self.optimizer, loss, mean_loss = train(self.target_network,
                                      self.optimizer,
                                      self.replay_elements['state'],
                                      self.replay_elements['action'],
@@ -318,35 +322,69 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                      self._tau,
                                      self._alpha,
                                      self._clip_value_min)
+
+        if self._replay_scheme == 'prioritized':
+          # The original prioritized experience replay uses a linear exponent
+          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
+          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
+          # suggested a fixed exponent actually performs better, except on Pong.
+          probs = self.replay_elements['sampling_probabilities']
+          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
+          loss_weights /= jnp.max(loss_weights)
+
+          # Rainbow and prioritized replay are parametrized by an exponent
+          # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
+          # leave it as is here, using the more direct sqrt(). Taking the square
+          # root "makes sense", as we are dealing with a squared loss.  Add a
+          # small nonzero value to the loss to avoid 0 priority items. While
+          # technically this may be okay, setting all items to 0 priority will
+          # cause troubles, and also result in 1.0 / 0.0 = NaN correction terms.
+          self._replay.set_priority(self.replay_elements['indices'],
+                                    jnp.sqrt(loss + 1e-10))
+          # Weight the loss by the inverse priorities.
+          loss = loss_weights * loss
+          #mean_loss 
+          mean_loss = jnp.mean(loss)
         
         if (self.summary_writer is not None and
             self.training_steps > 0 and
             self.training_steps % self.summary_writing_frequency == 0):
           summary = tf.compat.v1.Summary(value=[
-              tf.compat.v1.Summary.Value(tag='HuberLoss', simple_value=loss)])
+              tf.compat.v1.Summary.Value(tag='HuberLoss', simple_value=mean_loss)])
           self.summary_writer.add_summary(summary, self.training_steps)
       if self.training_steps % self.target_update_period == 0:
         self._sync_weights()
 
     self.training_steps += 1
 
-  def _store_transition(self, last_observation, action, reward, is_terminal):
-    """Stores an experienced transition.
-
-    Pedantically speaking, this does not actually store an entire transition
-    since the next state is recorded on the following time step.
-
+  def _store_transition(self,
+                        last_observation,
+                        action,
+                        reward,
+                        is_terminal,
+                        priority=None):
+    """Stores a transition when in training mode.
+    Stores the following tuple in the replay buffer (last_observation, action,
+    reward, is_terminal, priority).
     Args:
-      last_observation: numpy array, last observation.
-      action: int, the action taken.
-      reward: float, the reward.
-      is_terminal: bool, indicating if the current state is a terminal state.
+      last_observation: Last observation, type determined via observation_type
+        parameter in the replay_memory constructor.
+      action: An integer, the action taken.
+      reward: A float, the reward.
+      is_terminal: Boolean indicating if the current state is a terminal state.
+      priority: Float. Priority of sampling the transition. If None, the default
+        priority will be used. If replay scheme is uniform, the default priority
+        is 1. If the replay scheme is prioritized, the default priority is the
+        maximum ever seen [Schaul et al., 2015].
     """
-    if self._prioritized==True:
-      priority = self._replay.sum_tree.max_recorded_priority
+    if priority is None:
+      if self._replay_scheme == 'uniform':
+        priority = 1.
+      else:
+        priority = self._replay.sum_tree.max_recorded_priority
+
+    if not self.eval_mode:
       self._replay.add(last_observation, action, reward, is_terminal, priority)
-    else:
-      self._replay.add(last_observation, action, reward, is_terminal)
 
   def begin_episode(self, observation):
     """Returns the agent's first action for this episode.
