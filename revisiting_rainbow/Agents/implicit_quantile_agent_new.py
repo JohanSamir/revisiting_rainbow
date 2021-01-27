@@ -142,7 +142,7 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   _replay_target_q_values = jnp.squeeze(jnp.mean(q_state_values, axis=0))
   #------------------------------------------------------------------------
 
-  replay_action_one_hot = replay_action_one_hot = jax.nn.one_hot(actions,num_actions)
+  replay_action_one_hot = jax.nn.one_hot(actions,num_actions)
   replay_next_log_policy = stable_scaled_log_softmax(_replay_next_target_q_values, tau, axis=0)
   replay_next_policy =  stable_softmax(_replay_next_target_q_values,tau, axis=0)
   replay_log_policy =  stable_scaled_log_softmax(_replay_target_q_values, tau, axis=0)
