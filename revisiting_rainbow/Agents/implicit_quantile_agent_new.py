@@ -125,7 +125,6 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   #Build the munchausen target for return values at given quantiles.
   del double_dqn
 
-  rewards = jnp.tile(rewards, [num_tau_prime_samples])
   is_terminal_multiplier = 1. - terminals.astype(jnp.float32)
   # Incorporate terminal state to discount factor.
   gamma_with_terminal = cumulative_gamma * is_terminal_multiplier
@@ -137,7 +136,7 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   target_next_quantile_values_action = target_next_action.quantile_values
   _replay_next_target_q_values = jnp.squeeze(jnp.mean(target_next_quantile_values_action, axis=0))
 
-  outputs_action = target_network(states,num_quantiles=num_quantile_samples, rng=rng1)
+  outputs_action = target_network(states,num_quantiles=num_quantile_samples, rng=rng2)
   q_state_values = outputs_action.quantile_values
   _replay_target_q_values = jnp.squeeze(jnp.mean(q_state_values, axis=0))
   #------------------------------------------------------------------------
@@ -152,6 +151,10 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   tau_log_pi_a = jnp.sum(replay_log_policy * replay_action_one_hot, axis=0)
   tau_log_pi_a = jnp.clip(tau_log_pi_a, a_min=clip_value_min,a_max=1)
   munchausen_term = alpha * tau_log_pi_a
+
+  rewards = rewards + munchausen_term
+  rewards = jnp.tile(rewards, [num_tau_prime_samples])
+
   weighted_logits = (replay_next_policy * (target_next_quantile_values_action- replay_next_log_policy))
 
   target_quantile_values = jnp.sum(weighted_logits, axis=1)

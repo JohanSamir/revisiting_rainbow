@@ -35,9 +35,9 @@ JaxImplicitQuantileAgentNew.num_tau_prime_samples = 32
 JaxImplicitQuantileAgentNew.num_quantile_samples = 32
 JaxImplicitQuantileAgentNew.quantile_embedding_dim = 64
 
-JaxImplicitQuantileAgentNew.tau = 100#0.03#0.03
-JaxImplicitQuantileAgentNew.alpha = 1#0.9 #1
-JaxImplicitQuantileAgentNew.clip_value_min = -1e3#-1#-10
+JaxImplicitQuantileAgentNew.tau = 0.03
+JaxImplicitQuantileAgentNew.alpha = 1
+JaxImplicitQuantileAgentNew.clip_value_min = -1
 
 JaxImplicitQuantileAgentNew.optimizer = 'adam'
 JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
