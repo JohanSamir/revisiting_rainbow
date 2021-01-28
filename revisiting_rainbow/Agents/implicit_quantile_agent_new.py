@@ -132,6 +132,10 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   
   rng, rng1, rng2 = jax.random.split(rng, num=3)
   #------------------------------------------------------------------------
+  replay_net_target_outputs = target_network(next_states,num_quantiles=num_tau_prime_samples, rng=rng)
+  replay_net_target_quantile_values =  replay_net_target_outputs.quantile_values
+  #print('replay_net_target_quantile_values:',replay_net_target_quantile_values.shape,replay_net_target_quantile_values)
+
   target_next_action = target_network(next_states,num_quantiles=num_quantile_samples, rng=rng1)
   target_next_quantile_values_action = target_next_action.quantile_values
   _replay_next_target_q_values = jnp.squeeze(jnp.mean(target_next_quantile_values_action, axis=0))
@@ -149,13 +153,13 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   #------------------------------------------------------------------------
 
   tau_log_pi_a = jnp.sum(replay_log_policy * replay_action_one_hot, axis=0)
-  tau_log_pi_a = jnp.clip(tau_log_pi_a, a_min=clip_value_min,a_max=1)
+  tau_log_pi_a = jnp.clip(tau_log_pi_a, a_min=clip_value_min,a_max=0)
   munchausen_term = alpha * tau_log_pi_a
 
   rewards = rewards + munchausen_term
   rewards = jnp.tile(rewards, [num_tau_prime_samples])
 
-  weighted_logits = (replay_next_policy * (target_next_quantile_values_action- replay_next_log_policy))
+  weighted_logits = (replay_next_policy * (replay_net_target_quantile_values-replay_next_log_policy))
 
   target_quantile_values = jnp.sum(weighted_logits, axis=1)
   target_quantile_values = rewards + gamma_with_terminal * target_quantile_values

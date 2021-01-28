@@ -100,45 +100,32 @@ def stable_softmax(x, tau, axis=-1):
 def target_m_dqn(model, target_network, states, next_states, actions,rewards, terminals, 
                 cumulative_gamma,tau,alpha,clip_value_min):
   """Compute the target Q-value. Munchausen DQN"""
+  
+  #----------------------------------------
   q_state_values = jax.vmap(target_network, in_axes=(0))(states).q_values
   q_state_values = jnp.squeeze(q_state_values)
-  #print('q_state_values:',q_state_values.shape)
-
+  
   next_q_values = jax.vmap(target_network, in_axes=(0))(next_states).q_values
   next_q_values = jnp.squeeze(next_q_values)
-  #print('next_q_values:',next_q_values.shape)
+  #----------------------------------------
 
   tau_log_pi_next =  stable_scaled_log_softmax(next_q_values, tau, axis=1)
-  #print('tau_log_pi_next:',tau_log_pi_next.shape)
-
-
-  #pi_target = jnp.amax(next_q_values, axis=1, keepdims=True)
   pi_target = stable_softmax(next_q_values,tau, axis=1)
-  #print('pi_target:',pi_target.shape)
-
-  replay_next_qt_softmax = jnp.sum((next_q_values-tau_log_pi_next)*pi_target,axis=1)
-  #Q_target = Q_target.reshape(Q_target.shape[0],1)
-  #print('replay_next_qt_softmax:',replay_next_qt_softmax.shape)
-
-  #replay_log_policy =  jnp.amax(q_state_values,axis=1,keepdims=True)
   replay_log_policy = stable_scaled_log_softmax(q_state_values, tau, axis=1)
-  #print('replay_log_policy:',replay_log_policy.shape)
+
+  #----------------------------------------
   
+  replay_next_qt_softmax = jnp.sum((next_q_values-tau_log_pi_next)*pi_target,axis=1)
+
   replay_action_one_hot = jax.nn.one_hot(actions, q_state_values.shape[-1])
   tau_log_pi_a = jnp.sum(replay_log_policy * replay_action_one_hot, axis=1)
-  #print('tau_log_pi_a:',tau_log_pi_a.shape)
 
   #a_max=1
   tau_log_pi_a = jnp.clip(tau_log_pi_a, a_min=clip_value_min,a_max=1)
-  #print('tau_log_pi_a:',tau_log_pi_a.shape)
 
   munchausen_term = alpha * tau_log_pi_a
-  #print('munchausen_term:',munchausen_term.shape)
-
-  
   modified_bellman = (rewards + munchausen_term +cumulative_gamma * replay_next_qt_softmax *
         (1. - jnp.float32(terminals)))
-  #print('modified_bellman:',modified_bellman.shape)
   
   return jax.lax.stop_gradient(modified_bellman)
 
