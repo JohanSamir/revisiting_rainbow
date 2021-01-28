@@ -30,19 +30,19 @@ JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized or uniform
 JaxImplicitQuantileAgentNew.interact = 'greedy'
 JaxImplicitQuantileAgentNew.kappa = 1.0
 
-JaxImplicitQuantileAgentNew.num_tau_samples = 32
-JaxImplicitQuantileAgentNew.num_tau_prime_samples = 32
+JaxImplicitQuantileAgentNew.num_tau_samples = 64#32
+JaxImplicitQuantileAgentNew.num_tau_prime_samples = 64#32
 JaxImplicitQuantileAgentNew.num_quantile_samples = 32
 JaxImplicitQuantileAgentNew.quantile_embedding_dim = 64
 
-JaxImplicitQuantileAgentNew.tau = 0.03
+JaxImplicitQuantileAgentNew.tau = 0.03#100
 JaxImplicitQuantileAgentNew.alpha = 1
-JaxImplicitQuantileAgentNew.clip_value_min = -1
+JaxImplicitQuantileAgentNew.clip_value_min = -1#-1e3
 
 JaxImplicitQuantileAgentNew.optimizer = 'adam'
 JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
 JaxImplicitQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon #@dqn_agent.linearly_decaying_epsilon
-JaxImplicitQuantileAgentNew.target_opt = 0 # 0 target_quantile and 1 munchau_target_quantile 
+JaxImplicitQuantileAgentNew.target_opt = 1 # 0 target_quantile and 1 munchau_target_quantile 
 
 create_optimizer.learning_rate = 0.0001
 create_optimizer.eps =0.0003125
