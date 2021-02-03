@@ -20,6 +20,8 @@ env_inf = {"CartPole":{"MIN_VALS": onp.array([-2.4, -5., -math.pi/12., -math.pi*
             "MountainCar":{"MIN_VALS":onp.array([-1.2, -0.07]),"MAX_VALS": onp.array([0.6, 0.07])}
             }
 
+initializers = {"xavier_uniform": nn.initializers.xavier_uniform(), 
+                "variance_scaling": jax.nn.initializers.variance_scaling(scale=1.0/jnp.sqrt(3.0),mode='fan_in',distribution='uniform')}
 #---------------------------------------------------------------------------------------------------------------------
 
 @gin.configurable
@@ -60,14 +62,14 @@ class NoisyNetwork(nn.Module):
 class DQNNetwork(nn.Module):
   """Jax DQN network for Cartpole."""
 
-  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, hidden_layer=2, neurons=512):
+  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, initzer, hidden_layer=2, neurons=512):
     del normalize_obs
 
     if net_conf == 'minatar':
       x = x.squeeze(3)
       x = x[None, ...]
       x = x.astype(jnp.float32)
-      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=nn.initializers.xavier_uniform())
+      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))
 
@@ -77,13 +79,13 @@ class DQNNetwork(nn.Module):
       x = x[None, ...]
       x = x.astype(jnp.float32) / 255.
       x = nn.Conv(x, features=32, kernel_size=(8, 8), strides=(4, 4),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(4, 4), strides=(2, 2),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(3, 3), strides=(1, 1),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))  # flatten
 
@@ -103,7 +105,7 @@ class DQNNetwork(nn.Module):
         return NoisyNetwork(x, features)
     else:
       def net(x, features):
-        return nn.Dense(x, features, kernel_init=nn.initializers.xavier_uniform())
+        return nn.Dense(x, features, kernel_init=initializers[initzer])
 
     for _ in range(hidden_layer):
       x = net(x, features=neurons)
@@ -123,14 +125,14 @@ class DQNNetwork(nn.Module):
 @gin.configurable
 class RainbowDQN(nn.Module):
 
-  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, num_atoms, support, hidden_layer=2, neurons=512):
+  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, initzer, num_atoms, support, hidden_layer=2, neurons=512):
     del normalize_obs
 
     if net_conf == 'minatar':
       x = x.squeeze(3)
       x = x[None, ...]
       x = x.astype(jnp.float32)
-      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=nn.initializers.xavier_uniform())
+      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))
 
@@ -140,13 +142,13 @@ class RainbowDQN(nn.Module):
       x = x[None, ...]
       x = x.astype(jnp.float32) / 255.
       x = nn.Conv(x, features=32, kernel_size=(8, 8), strides=(4, 4),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(4, 4), strides=(2, 2),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(3, 3), strides=(1, 1),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))  # flatten
 
@@ -168,7 +170,7 @@ class RainbowDQN(nn.Module):
         return NoisyNetwork(x, features)
     else:
       def net(x, features):
-        return nn.Dense(x, features, kernel_init=nn.initializers.xavier_uniform())
+        return nn.Dense(x, features, kernel_init=initializers[initzer])
 
 
     for _ in range(hidden_layer):
@@ -199,14 +201,14 @@ class RainbowDQN(nn.Module):
 class QuantileNetwork(nn.Module):
   """Convolutional network used to compute the agent's return quantiles."""
 
-  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, num_atoms,hidden_layer=2, neurons=512):
+  def apply(self, x, num_actions, net_conf, env, normalize_obs, noisy, dueling, initzer, num_atoms,hidden_layer=2, neurons=512):
     del normalize_obs
 
     if net_conf == 'minatar':
       x = x.squeeze(3)
       x = x[None, ...]
       x = x.astype(jnp.float32)
-      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=nn.initializers.xavier_uniform())
+      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1), kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))
 
@@ -216,13 +218,13 @@ class QuantileNetwork(nn.Module):
       x = x[None, ...]
       x = x.astype(jnp.float32) / 255.
       x = nn.Conv(x, features=32, kernel_size=(8, 8), strides=(4, 4),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(4, 4), strides=(2, 2),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(3, 3), strides=(1, 1),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))  # flatten
 
@@ -244,7 +246,7 @@ class QuantileNetwork(nn.Module):
         return NoisyNetwork(x, features)
     else:
       def net(x, features):
-        return nn.Dense(x, features, kernel_init=nn.initializers.xavier_uniform())
+        return nn.Dense(x, features, kernel_init=initializers[initzer])
 
 
     for _ in range(hidden_layer):
@@ -274,19 +276,13 @@ class QuantileNetwork(nn.Module):
 class ImplicitQuantileNetwork(nn.Module):
   """Jax DQN network for Cartpole."""
      
-  def apply(self, x, num_actions, net_conf, env, hidden_layer, neurons, noisy, dueling, quantile_embedding_dim, num_quantiles, rng):
-    #initializer = jax.nn.initializers.variance_scaling(
-    #    scale=1.0 / jnp.sqrt(3.0),
-    #    mode='fan_in',
-    #    distribution='uniform')
-
-    initializer = nn.initializers.xavier_uniform()
-
+  def apply(self, x, num_actions, net_conf, env, hidden_layer, neurons, noisy, dueling, initzer, quantile_embedding_dim, num_quantiles, rng):
+  
     if net_conf == 'minatar':
       x = x.squeeze(3)
       x = x[None, ...]
       x = x.astype(jnp.float32)
-      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=nn.initializers.xavier_uniform())
+      x = nn.Conv(x, features=16, kernel_size=(3, 3, 3), strides=(1, 1, 1),  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))
 
@@ -296,13 +292,13 @@ class ImplicitQuantileNetwork(nn.Module):
       x = x[None, ...]
       x = x.astype(jnp.float32) / 255.
       x = nn.Conv(x, features=32, kernel_size=(8, 8), strides=(4, 4),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(4, 4), strides=(2, 2),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = nn.Conv(x, features=64, kernel_size=(3, 3), strides=(1, 1),
-                  kernel_init=nn.initializers.xavier_uniform())
+                  kernel_init=initializers[initzer])
       x = jax.nn.relu(x)
       x = x.reshape((x.shape[0], -1))  # flatten
 
@@ -322,7 +318,7 @@ class ImplicitQuantileNetwork(nn.Module):
         return NoisyNetwork(x, features)
     else:
       def net(x, features):
-        return nn.Dense(x, features, kernel_init=nn.initializers.xavier_uniform())
+        return nn.Dense(x, features,kernel_init=initializers[initzer])
 
     for _ in range(hidden_layer):
       x = net(x, features=neurons)
@@ -339,22 +335,15 @@ class ImplicitQuantileNetwork(nn.Module):
         * quantile_net)
     quantile_net = jnp.cos(quantile_net)
     quantile_net = nn.Dense(quantile_net,
-                            #features=state_vector_length
                             features=state_vector_length,
-                            kernel_init=initializer)
+                            kernel_init=initializers[initzer])
     quantile_net = jax.nn.relu(quantile_net)
     x = state_net_tiled * quantile_net
     
-    print('x:',x.shape,x)
-    #x = nn.Dense(x, features=512, kernel_init=initializer)
-    #x = jax.nn.relu(x)
-    #quantile_values = nn.Dense(x, features=num_actions, kernel_init=initializer)
-
     adv = net(x,features=num_actions)
     val = net(x, features=1)
     dueling_q = val + (adv - (jnp.mean(adv, -1, keepdims=True)))
     non_dueling_q = net(x, features=num_actions)
     quantile_values = jnp.where(dueling, dueling_q, non_dueling_q)
-    print('quantile_values:',quantile_values.shape,quantile_values)
 
     return atari_lib.ImplicitQuantileNetworkType(quantile_values, quantiles)

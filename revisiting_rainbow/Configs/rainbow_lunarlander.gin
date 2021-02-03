@@ -20,6 +20,7 @@ JaxDQNAgent.target_update_period = 300
 JaxRainbowAgentNew.optimizer = 'adam'
 JaxRainbowAgentNew.noisy = True
 JaxRainbowAgentNew.dueling = True
+JaxRainbowAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
 JaxRainbowAgentNew.double_dqn = True
 JaxRainbowAgentNew.net_conf = 'classic'
 JaxRainbowAgentNew.env = 'LunarLander'

@@ -100,6 +100,7 @@ class JaxRainbowAgentNew(dqn_agent.JaxDQNAgent):
                
                noisy = False,
                dueling = False,
+               initzer = 'variance_scaling',
                net_conf = None,
                env = "CartPole", 
                normalize_obs = True,
@@ -162,6 +163,7 @@ class JaxRainbowAgentNew(dqn_agent.JaxDQNAgent):
     self._neurons=neurons 
     self._noisy = noisy
     self._dueling = dueling
+    self._initzer = initzer
 
     super(JaxRainbowAgentNew, self).__init__(
         num_actions=num_actions,
@@ -173,7 +175,8 @@ class JaxRainbowAgentNew(dqn_agent.JaxDQNAgent):
                                 hidden_layer=self._hidden_layer, 
                                 neurons=self._neurons,
                                 noisy=self._noisy,
-                                dueling=self._dueling),
+                                dueling=self._dueling
+                                initzer=self._initzer),
        
         epsilon_fn = dqn_agent.identity_epsilon if self._noisy == True else epsilon_fn,
         optimizer=optimizer)

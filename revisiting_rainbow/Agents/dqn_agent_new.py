@@ -192,6 +192,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                replay_scheme='prioritized',
                noisy = False,
                dueling = False,
+               initzer = 'xavier_uniform',
                target_opt=0,
                mse_inf=False,
                network=networks.NatureDQNNetwork,
@@ -243,6 +244,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
     self._neurons=neurons 
     self._noisy = noisy
     self._dueling = dueling
+    self._initzer = initzer
     self._target_opt = target_opt
     self._mse_inf = mse_inf
     self._tau = tau
@@ -259,7 +261,8 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                 hidden_layer=self._hidden_layer, 
                                 neurons=self._neurons,
                                 noisy=self._noisy,
-                                dueling=self._dueling),
+                                dueling=self._dueling,
+                                initzer=self._initzer),
         optimizer=optimizer,
         epsilon_fn=dqn_agent.identity_epsilon if self._noisy == True else epsilon_fn)
 

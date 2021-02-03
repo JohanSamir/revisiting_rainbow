@@ -28,6 +28,7 @@ JaxQuantileAgentNew.neurons = 512
 JaxQuantileAgentNew.double_dqn = False
 JaxQuantileAgentNew.noisy = False
 JaxQuantileAgentNew.dueling = False
+JaxQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
 JaxQuantileAgentNew.replay_scheme = 'uniform' #'prioritized'
 JaxQuantileAgentNew.network  = @networks_new.QuantileNetwork 
 JaxQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon

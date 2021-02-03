@@ -358,6 +358,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                neurons=512,
                noisy = False,
                dueling = False,
+               initzer = 'variance_scaling',
 
                observation_shape=dqn_agent.NATURE_DQN_OBSERVATION_SHAPE,
                observation_dtype=dqn_agent.NATURE_DQN_DTYPE,
@@ -437,6 +438,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._neurons=neurons 
     self._noisy = noisy
     self._dueling = dueling
+    self._initzer = initzer
 
     self._tau = tau
     self._alpha = alpha
@@ -470,6 +472,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                 neurons=self._neurons,
                                 noisy=self._noisy,
                                 dueling=self._dueling,
+                                initzer=self._initzer,
                                 quantile_embedding_dim=quantile_embedding_dim),
         gamma=gamma,
         update_horizon=update_horizon,

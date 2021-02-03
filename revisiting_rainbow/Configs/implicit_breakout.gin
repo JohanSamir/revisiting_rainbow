@@ -27,6 +27,7 @@ JaxImplicitQuantileAgentNew.neurons = None
 JaxImplicitQuantileAgentNew.noisy = False
 JaxImplicitQuantileAgentNew.double_dqn = False
 JaxImplicitQuantileAgentNew.dueling = False
+JaxImplicitQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
 JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized
 JaxImplicitQuantileAgentNew.interact = 'greedy'
 JaxImplicitQuantileAgentNew.kappa = 1.0

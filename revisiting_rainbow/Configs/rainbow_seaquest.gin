@@ -21,6 +21,7 @@ JaxDQNAgent.target_update_period = 1000
 JaxRainbowAgentNew.optimizer = 'adam'
 JaxRainbowAgentNew.noisy = True
 JaxRainbowAgentNew.dueling = True
+JaxRainbowAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
 JaxRainbowAgentNew.double_dqn = True
 JaxRainbowAgentNew.net_conf = 'minatar'
 JaxRainbowAgentNew.env = None

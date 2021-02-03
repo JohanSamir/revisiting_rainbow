@@ -28,6 +28,7 @@ JaxDQNAgentNew.target_opt = 0 #0:DQN 1:Double DQN 2:Munchausen DQN
 JaxDQNAgentNew.mse_inf = False
 JaxDQNAgentNew.noisy = False
 JaxDQNAgentNew.dueling = False
+JaxDQNAgentNew.initzer = 'xavier_uniform' #'variance_scaling'
 JaxDQNAgentNew.network = @networks_new.DQNNetwork
 JaxDQNAgentNew.epsilon_fn = @dqn_agent.identity_epsilon
 JaxDQNAgentNew.tau = 100 

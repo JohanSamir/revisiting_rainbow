@@ -26,6 +26,7 @@ JaxImplicitQuantileAgentNew.neurons = 512
 JaxImplicitQuantileAgentNew.noisy = False
 JaxImplicitQuantileAgentNew.double_dqn = False
 JaxImplicitQuantileAgentNew.dueling = False
+JaxImplicitQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
 JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'# prioritized or uniform
 JaxImplicitQuantileAgentNew.interact = 'greedy'
 JaxImplicitQuantileAgentNew.kappa = 1.0
@@ -42,7 +43,7 @@ JaxImplicitQuantileAgentNew.clip_value_min = -1#-1e3
 JaxImplicitQuantileAgentNew.optimizer = 'adam'
 JaxImplicitQuantileAgentNew.network  = @networks_new.ImplicitQuantileNetwork
 JaxImplicitQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon #@dqn_agent.linearly_decaying_epsilon
-JaxImplicitQuantileAgentNew.target_opt = 0 # 0 target_quantile and 1 munchau_target_quantile 
+JaxImplicitQuantileAgentNew.target_opt = 1 # 0 target_quantile and 1 munchau_target_quantile 
 
 create_optimizer.learning_rate = 0.0001
 create_optimizer.eps =0.0003125
