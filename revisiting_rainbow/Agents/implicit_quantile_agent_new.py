@@ -1,17 +1,3 @@
-# coding=utf-8
-# Copyright 2018 The Dopamine Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """The implicit quantile networks (IQN) agent.
 
 The agent follows the description given in "Implicit Quantile Networks for
@@ -134,7 +120,6 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   #------------------------------------------------------------------------
   replay_net_target_outputs = target_network(next_states,num_quantiles=num_tau_prime_samples, rng=rng)
   replay_net_target_quantile_values =  replay_net_target_outputs.quantile_values
-  #print('replay_net_target_quantile_values:',replay_net_target_quantile_values.shape,replay_net_target_quantile_values)
 
   target_next_action = target_network(next_states,num_quantiles=num_quantile_samples, rng=rng1)
   target_next_quantile_values_action = target_next_action.quantile_values
@@ -300,28 +285,11 @@ def select_action(network, state, rng, num_quantile_samples, num_actions,
   if interact == 'stochastic':
 
     state = jnp.expand_dims(state, axis=0)
-    print('net_outputs:',net_outputs.shape,net_outputs)
     net_outputs = network(state, num_quantiles=num_quantile_samples, rng=rng2).quantile_values
-    print('net_outputs:',net_outputs.shape,net_outputs)
     q_values = jnp.mean(net_outputs,axis=0)
-    print('net_outputs:',net_outputs.shape,net_outputs)
-    policy_logits = jax.nn.softmax(q_values/tau, axis=0)
-    print('net_outputs:',net_outputs.shape,net_outputs)
-    
-    #state = jnp.expand_dims(state, axis=0)
-    #net_outputs = jax.vmap(model.target, in_axes=(0))(state).q_values
-    #print('net_outputs:',net_outputs.shape,net_outputs)
-    #net_outputs = jnp.squeeze(net_outputs)
-
-    #print('net_outputs:',net_outputs.shape,net_outputs)
-
-    #policy_logits =  stable_scaled_log_softmax(net_outputs, tau, axis=0)
-    #print('policy_logits:',policy_logits.shape,policy_logits)
-    
+    policy_logits = jax.nn.softmax(q_values/tau, axis=0) 
     key = jax.random.PRNGKey(seed=0)
     stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
-    print('stochastic_action:',stochastic_action.shape,stochastic_action)
-    #print('interact: stochastic')
     selected_action = stochastic_action
 
   elif interact == 'greedy':
@@ -489,7 +457,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
 
     self._num_actions=num_actions
     self._replay = self._build_replay_buffer()
-    #self._replay = self._build_replay_buffer_prioritized() if self._prioritized == 'uniform' or self._prioritized == 'prioritized' else self._build_replay_buffer()
 
   def _create_network(self, name):
     r"""Builds an Implicit Quantile ConvNet.

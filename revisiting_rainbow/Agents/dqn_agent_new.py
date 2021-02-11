@@ -146,18 +146,11 @@ def select_action(network, state, rng, num_actions, eval_mode,
 
     state = jnp.expand_dims(state, axis=0)
     net_outputs = jax.vmap(model.target, in_axes=(0))(state).q_values
-    #print('net_outputs:',net_outputs.shape,net_outputs)
     net_outputs = jnp.squeeze(net_outputs)
-
-    #print('net_outputs:',net_outputs.shape,net_outputs)
-
     policy_logits =  stable_scaled_log_softmax(net_outputs, tau, axis=0)
-    #print('policy_logits:',policy_logits.shape,policy_logits)
     
     key = jax.random.PRNGKey(seed=0)
     stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
-    #print('stochastic_action:',stochastic_action.shape,stochastic_action)
-    #print('interact: stochastic')
     selected_action = stochastic_action
 
   elif interact == 'greedy':
@@ -188,7 +181,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                normalize_obs = True,
                hidden_layer=2, 
                neurons=512,
-               #prioritized=False,
                replay_scheme='prioritized',
                noisy = False,
                dueling = False,

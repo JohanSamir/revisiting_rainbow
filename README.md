@@ -8,7 +8,7 @@ Our rainbow agent implements three addittional components to the rainbow agent p
 * Noisy nets ([Meire Fortunato et al., 2018][fortunato])
 * Dueling networks  ([Hado van Hasselt et al., 2016][wang])
 * Double Q-learning ([Ziyu Wang et al., 2016][hasselt])
-* Munchausen Reinforcement Learning ([Nino Vieillard et al., 2016][Vieillard])
+* Munchausen Reinforcement Learning ([Nino Vieillard et al., 2020][Vieillard])
 
 if you are interested to know more about Revisiting Rainbow, considering check the following resources:
 
