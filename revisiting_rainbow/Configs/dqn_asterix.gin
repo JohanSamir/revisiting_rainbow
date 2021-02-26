@@ -35,7 +35,6 @@ JaxDQNAgentNew.epsilon_fn =  @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
 JaxDQNAgentNew.tau = 0.03
 JaxDQNAgentNew.alpha = 0.9 
 JaxDQNAgentNew.clip_value_min = -1
-JaxDQNAgentNew.interact = 'greedy'#'stochastic'#'greedy'
 
 create_optimizer = @dqn_agent.create_optimizer
 create_optimizer.learning_rate = 0.00025#0.001

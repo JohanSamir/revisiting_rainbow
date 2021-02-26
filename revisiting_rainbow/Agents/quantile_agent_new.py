@@ -79,11 +79,11 @@ def target_distribution(target_network, next_states, rewards, terminals,
   return jax.lax.stop_gradient(rewards + gamma_with_terminal * next_logits)
 
 
-@functools.partial(jax.jit, static_argnums=( 7, 8, 9, 10))
+@functools.partial(jax.jit, static_argnums=( 8, 9, 10, 11))
 def train(target_network, optimizer, states, actions, next_states, rewards,
-          terminals, kappa, num_atoms, cumulative_gamma, double_dqn):
+          terminals, loss_weights, kappa, num_atoms, cumulative_gamma, double_dqn):
   """Run a training step."""
-  def loss_fn(model, target, mean_loss=True):
+  def loss_fn(model, target, loss_multipliers):
     logits = jax.vmap(model)(states).logits
     logits = jnp.squeeze(logits)
     # Fetch the logits for its selected action. We use vmap to perform this
@@ -106,19 +106,19 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
     quantile_huber_loss = tau_bellman_diff * huber_loss
     # Sum over tau dimension, average over target value dimension.
     loss = jnp.sum(jnp.mean(quantile_huber_loss, 2), 1)
-    if mean_loss:
-      loss = jnp.mean(loss)
-    return loss
-  grad_fn = jax.value_and_grad(loss_fn)
+
+    mean_loss = jnp.mean(loss_multipliers * loss)
+    return mean_loss, loss
+
+
+  grad_fn = jax.value_and_grad(loss_fn,  has_aux=True)
 
   if double_dqn:
     target = target_distributionDouble(optimizer.target,target_network, next_states, rewards,  terminals, cumulative_gamma)
   else:
     target = target_distribution(target_network, next_states, rewards, terminals, cumulative_gamma)
 
-  mean_loss, grad = grad_fn(optimizer.target, target)
-  # Get the loss without taking its mean.
-  loss = loss_fn(optimizer.target, target, mean_loss=False)
+  (mean_loss, loss), grad =  grad_fn(optimizer.target, target, loss_weights)
   optimizer = optimizer.apply_gradient(grad)
   return optimizer, loss, mean_loss
 
@@ -256,18 +256,7 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
     if self._replay.add_count > self.min_replay_history:
       if self.training_steps % self.update_period == 0:
         self._sample_from_replay_buffer()
-        self.optimizer, loss, mean_loss = train(
-            self.target_network,
-            self.optimizer,
-            self.replay_elements['state'],
-            self.replay_elements['action'],
-            self.replay_elements['next_state'],
-            self.replay_elements['reward'],
-            self.replay_elements['terminal'],
-            self._kappa,
-            self._num_atoms,
-            self.cumulative_gamma,
-            self._double_dqn)
+
         if self._replay_scheme == 'prioritized':
           # The original prioritized experience replay uses a linear exponent
           # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
@@ -276,7 +265,24 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
           probs = self.replay_elements['sampling_probabilities']
           loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
           loss_weights /= jnp.max(loss_weights)
+        else:
+          loss_weights = jnp.ones(self.replay_elements['state'].shape[0])
 
+        self.optimizer, loss, mean_loss = train(
+            self.target_network,
+            self.optimizer,
+            self.replay_elements['state'],
+            self.replay_elements['action'],
+            self.replay_elements['next_state'],
+            self.replay_elements['reward'],
+            self.replay_elements['terminal'],
+            loss_weights,
+            self._kappa,
+            self._num_atoms,
+            self.cumulative_gamma,
+            self._double_dqn)
+
+        if self._replay_scheme == 'prioritized':   
           # Rainbow and prioritized replay are parametrized by an exponent
           # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
           # leave it as is here, using the more direct sqrt(). Taking the square
@@ -287,9 +293,6 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
           self._replay.set_priority(self.replay_elements['indices'],
                                     jnp.sqrt(loss + 1e-10))
 
-          # Weight the loss by the inverse priorities.
-          loss = loss_weights * loss
-          mean_loss = jnp.mean(loss)
         if self.summary_writer is not None:
           summary = tf.compat.v1.Summary(value=[
               tf.compat.v1.Summary.Value(tag='QuantileLoss',

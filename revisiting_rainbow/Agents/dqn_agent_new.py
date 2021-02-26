@@ -35,11 +35,11 @@ def mse_loss(targets, predictions):
   return jnp.mean(jnp.power((targets - (predictions)),2))
 
 
-@functools.partial(jax.jit, static_argnums=(7,8,9,10,11,12))
+@functools.partial(jax.jit, static_argnums=(8,9,10,11,12,13))
 def train(target_network, optimizer, states, actions, next_states, rewards,
-          terminals, cumulative_gamma,target_opt, mse_inf,tau,alpha,clip_value_min):
+          terminals, loss_weights, cumulative_gamma, target_opt, mse_inf,tau,alpha,clip_value_min):
   """Run the training step."""
-  def loss_fn(model, target, mse_inf, mean_loss=True):
+  def loss_fn(model, target, loss_multipliers):
     q_values = jax.vmap(model, in_axes=(0))(states).q_values
     q_values = jnp.squeeze(q_values)
     replay_chosen_q = jax.vmap(lambda x, y: x[y])(q_values, actions)
@@ -49,11 +49,11 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
     else:
       loss = jax.vmap(dqn_agent.huber_loss)(target, replay_chosen_q)
 
-    if mean_loss:
-      loss = jnp.mean(loss)
-    return loss
+    mean_loss = jnp.mean(loss_multipliers * loss)
+    return mean_loss, loss
 
-  grad_fn = jax.value_and_grad(loss_fn)
+
+  grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
 
   if target_opt == 0:
     target = dqn_agent.target_q(target_network, next_states, rewards, terminals, cumulative_gamma) 
@@ -67,10 +67,8 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
   else:
     print('error')
 
-  mean_loss, grad = grad_fn(optimizer.target, target, mse_inf)
-  loss = loss_fn(optimizer.target, target, mse_inf, mean_loss=False)
+  (mean_loss, loss), grad = grad_fn(optimizer.target, target, loss_weights)
   optimizer = optimizer.apply_gradient(grad)
-
   return optimizer, loss, mean_loss
 
 def target_DDQN(model, target_network, next_states, rewards, terminals, cumulative_gamma):
@@ -130,10 +128,10 @@ def target_m_dqn(model, target_network, states, next_states, actions,rewards, te
   return jax.lax.stop_gradient(modified_bellman)
 
 
-@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 9, 10, 11, 12))
+@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 9, 10, 11))
 def select_action(network, state, rng, num_actions, eval_mode,
                   epsilon_eval, epsilon_train, epsilon_decay_period,
-                  training_steps, min_replay_history, epsilon_fn, interact,tau, model):
+                  training_steps, min_replay_history, epsilon_fn,tau, model):
 
   epsilon = jnp.where(eval_mode,
                       epsilon_eval,
@@ -142,21 +140,7 @@ def select_action(network, state, rng, num_actions, eval_mode,
                                  min_replay_history,
                                  epsilon_train))
 
-  if interact == 'stochastic':
-
-    state = jnp.expand_dims(state, axis=0)
-    net_outputs = jax.vmap(model.target, in_axes=(0))(state).q_values
-    net_outputs = jnp.squeeze(net_outputs)
-    policy_logits =  stable_scaled_log_softmax(net_outputs, tau, axis=0)
-    
-    key = jax.random.PRNGKey(seed=0)
-    stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
-    selected_action = stochastic_action
-
-  elif interact == 'greedy':
-    selected_action = jnp.argmax(network(state).q_values, axis=1)[0]
-  else:
-    print('error interact')
+  selected_action = jnp.argmax(network(state).q_values, axis=1)[0]
 
   rng, rng1, rng2 = jax.random.split(rng, num=3)
   p = jax.random.uniform(rng1)
@@ -174,7 +158,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                tau,
                alpha=1,
                clip_value_min=-10,
-               interact = 'greedy',
 
                net_conf = None,
                env = "CartPole", 
@@ -242,7 +225,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
     self._tau = tau
     self._alpha = alpha
     self._clip_value_min = clip_value_min
-    self._interact = interact
 
     super(JaxDQNAgentNew, self).__init__(
         num_actions= num_actions,
@@ -291,6 +273,19 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
       if self.training_steps % self.update_period == 0:
         self._sample_from_replay_buffer()
 
+        if self._replay_scheme == 'prioritized':
+          # The original prioritized experience replay uses a linear exponent
+          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
+          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
+          # suggested a fixed exponent actually performs better, except on Pong.
+          probs = self.replay_elements['sampling_probabilities']
+          # Weight the loss by the inverse priorities.
+          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
+          loss_weights /= jnp.max(loss_weights)
+        else:
+          loss_weights = jnp.ones(self.replay_elements['state'].shape[0])
+
+
         self.optimizer, loss, mean_loss = train(self.target_network,
                                      self.optimizer,
                                      self.replay_elements['state'],
@@ -298,6 +293,7 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                      self.replay_elements['next_state'],
                                      self.replay_elements['reward'],
                                      self.replay_elements['terminal'],
+                                     loss_weights,
                                      self.cumulative_gamma,
                                      self._target_opt,
                                      self._mse_inf,
@@ -306,14 +302,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                      self._clip_value_min)
 
         if self._replay_scheme == 'prioritized':
-          # The original prioritized experience replay uses a linear exponent
-          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
-          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
-          # suggested a fixed exponent actually performs better, except on Pong.
-          probs = self.replay_elements['sampling_probabilities']
-          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
-          loss_weights /= jnp.max(loss_weights)
-
           # Rainbow and prioritized replay are parametrized by an exponent
           # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
           # leave it as is here, using the more direct sqrt(). Taking the square
@@ -323,10 +311,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
           # cause troubles, and also result in 1.0 / 0.0 = NaN correction terms.
           self._replay.set_priority(self.replay_elements['indices'],
                                     jnp.sqrt(loss + 1e-10))
-          # Weight the loss by the inverse priorities.
-          loss = loss_weights * loss
-          #mean_loss 
-          mean_loss = jnp.mean(loss)
         
         if (self.summary_writer is not None and
             self.training_steps > 0 and
@@ -392,7 +376,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                            self.training_steps,
                                            self.min_replay_history,
                                            self.epsilon_fn,
-                                           self._interact,
                                            self._tau,
                                            self.optimizer)
     self.action = onp.asarray(self.action)
@@ -426,7 +409,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
                                            self.training_steps,
                                            self.min_replay_history,
                                            self.epsilon_fn,
-                                           self._interact,
                                            self._tau,
                                            self.optimizer)
     self.action = onp.asarray(self.action)

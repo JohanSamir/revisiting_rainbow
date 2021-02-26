@@ -152,12 +152,12 @@ def munchau_target_quantile_values_fun(online_network, target_network,
   return rng, jax.lax.stop_gradient(target_quantile_values[:, None])
 
 
-@functools.partial(jax.jit, static_argnums=(7, 8, 9, 10, 11, 12,13,14,15,16,17))
+@functools.partial(jax.jit, static_argnums=(8, 9, 10, 11, 12,13,14,15,16,17, 18))
 def train(target_network, optimizer, states, actions, next_states, rewards,
-          terminals, target_opt, num_tau_samples, num_tau_prime_samples,
+          terminals, loss_weights, target_opt, num_tau_samples, num_tau_prime_samples,
           num_quantile_samples, cumulative_gamma, double_dqn, kappa, tau,alpha,clip_value_min, num_actions,rng):
   """Run a training step."""
-  def loss_fn(model, rng_input, target_quantile_vals,  mean_loss=True):
+  def loss_fn(model, rng_input, target_quantile_vals, loss_multipliers):
     model_output = jax.vmap(
         lambda m, x, y, z: m(x=x, num_quantiles=y, rng=z),
         in_axes=(None, 0, None, None))(
@@ -195,10 +195,11 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
     loss = jnp.sum(quantile_huber_loss, axis=2)
     loss = jnp.squeeze(jnp.mean(loss, axis=1), axis=-1)
 
-    if mean_loss:
-      loss = jnp.mean(loss)
+    mean_loss = jnp.mean(loss_multipliers * loss)
 
-    return loss
+    return mean_loss, loss
+
+  grad_fn = jax.value_and_grad(loss_fn,has_aux=True)
 
   if target_opt == 0:
       rng, target_quantile_vals = target_quantile_values_fun(
@@ -236,19 +237,16 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
   else:
     print('error')
 
-  grad_fn = jax.value_and_grad(loss_fn)
   rng, rng_input = jax.random.split(rng)
-  mean_loss, grad = grad_fn(optimizer.target, rng_input, target_quantile_vals)
-  loss = loss_fn(optimizer.target, rng_input, target_quantile_vals, mean_loss=False)
+  (mean_loss, loss), grad = grad_fn(optimizer.target, rng_input, target_quantile_vals, loss_weights)
   optimizer = optimizer.apply_gradient(grad)
-
   return rng, optimizer, loss, mean_loss
 
 
-@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8, 10, 11, 12, 13))
+@functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8, 10, 11, 12))
 def select_action(network, state, rng, num_quantile_samples, num_actions,
                   eval_mode, epsilon_eval, epsilon_train, epsilon_decay_period,
-                  training_steps, min_replay_history, epsilon_fn, interact,tau, model):
+                  training_steps, min_replay_history, epsilon_fn, tau, model):
   """Select an action from the set of available actions.
 
   Chooses an action randomly with probability self._calculate_epsilon(), and
@@ -282,25 +280,12 @@ def select_action(network, state, rng, num_quantile_samples, num_actions,
                                  epsilon_train))
   rng, rng1, rng2 = jax.random.split(rng, num=3)
 
-  if interact == 'stochastic':
-
-    state = jnp.expand_dims(state, axis=0)
-    net_outputs = network(state, num_quantiles=num_quantile_samples, rng=rng2).quantile_values
-    q_values = jnp.mean(net_outputs,axis=0)
-    policy_logits = jax.nn.softmax(q_values/tau, axis=0) 
-    key = jax.random.PRNGKey(seed=0)
-    stochastic_action = jax.random.categorical(key, policy_logits, axis=0, shape=None)
-    selected_action = stochastic_action
-
-  elif interact == 'greedy':
-    selected_action = jnp.argmax(jnp.mean(
+  selected_action = jnp.argmax(jnp.mean(
                             network(state,
                                     num_quantiles=num_quantile_samples,
                                     rng=rng2).quantile_values, axis=0),
                                    axis=0)
-  else:
-    print('error interact')
-  
+
   p = jax.random.uniform(rng1)
   return rng, jnp.where(p <= epsilon,
                         jax.random.randint(rng2, (), 0, num_actions),
@@ -318,7 +303,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                alpha=1,
                clip_value_min=-10,
                target_opt=0,
-               interact = 'greedy',
 
                net_conf = None,
                env = "CartPole",
@@ -412,7 +396,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._alpha = alpha
     self._clip_value_min = clip_value_min
     self._target_opt = target_opt
-    self._interact = interact
 
     self.kappa = kappa
     self._replay_scheme = replay_scheme
@@ -500,7 +483,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                            self.training_steps,
                                            self.min_replay_history,
                                            self.epsilon_fn,
-                                           self._interact,
                                            self._tau,
                                            self.optimizer)
     self.action = onp.asarray(self.action)
@@ -538,7 +520,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                            self.training_steps,
                                            self.min_replay_history,
                                            self.epsilon_fn,
-                                           self._interact,
                                            self._tau,
                                            self.optimizer)
     self.action = onp.asarray(self.action)
@@ -570,6 +551,18 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
     if self._replay.add_count > self.min_replay_history:
       if self.training_steps % self.update_period == 0:
         self._sample_from_replay_buffer()
+
+        if self._replay_scheme == 'prioritized':
+          # The original prioritized experience replay uses a linear exponent
+          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
+          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
+          # suggested a fixed exponent actually performs better, except on Pong.
+          probs = self.replay_elements['sampling_probabilities']
+          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
+          loss_weights /= jnp.max(loss_weights)
+        else:
+          loss_weights = jnp.ones(self.replay_elements['state'].shape[0])
+
         self._rng, self.optimizer, loss, mean_loss= train(
             self.target_network,
             self.optimizer,
@@ -578,6 +571,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
             self.replay_elements['next_state'],
             self.replay_elements['reward'],
             self.replay_elements['terminal'],
+            loss_weights,
             self._target_opt,
             self.num_tau_samples,
             self.num_tau_prime_samples,
@@ -592,14 +586,6 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
             self._rng)
 
         if self._replay_scheme == 'prioritized':
-          # The original prioritized experience replay uses a linear exponent
-          # schedule 0.4 -> 1.0. Comparing the schedule to a fixed exponent of
-          # 0.5 on 5 games (Asterix, Pong, Q*Bert, Seaquest, Space Invaders)
-          # suggested a fixed exponent actually performs better, except on Pong.
-          probs = self.replay_elements['sampling_probabilities']
-          loss_weights = 1.0 / jnp.sqrt(probs + 1e-10)
-          loss_weights /= jnp.max(loss_weights)
-
           # Rainbow and prioritized replay are parametrized by an exponent
           # alpha, but in both cases it is set to 0.5 - for simplicity's sake we
           # leave it as is here, using the more direct sqrt(). Taking the square
@@ -609,10 +595,7 @@ class JaxImplicitQuantileAgentNew(dqn_agent.JaxDQNAgent):
           # cause troubles, and also result in 1.0 / 0.0 = NaN correction terms.
           self._replay.set_priority(self.replay_elements['indices'],
                                     jnp.sqrt(loss + 1e-10))
-          # Weight the loss by the inverse priorities.
-          loss = loss_weights * loss
-          #mean_loss 
-          mean_loss = jnp.mean(loss)
+
 
         if (self.summary_writer is not None and
             self.training_steps > 0 and
