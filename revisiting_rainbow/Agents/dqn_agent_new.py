@@ -18,7 +18,6 @@ Details in:
 "Munchausen Reinforcement Learning" by Vieillard et al. (2020).
 
 """
-
 import functools
 from dopamine.jax import networks
 from dopamine.jax.agents.dqn import dqn_agent
@@ -241,7 +240,6 @@ class JaxDQNAgentNew(dqn_agent.JaxDQNAgent):
         epsilon_fn=dqn_agent.identity_epsilon if self._noisy == True else epsilon_fn)
 
     self._replay_scheme = replay_scheme
-    self._rng = jax.random.PRNGKey(0)
     state_shape = self.observation_shape + (self.stack_size,)
     self.state = onp.zeros(state_shape)
     self._optimizer_name = optimizer

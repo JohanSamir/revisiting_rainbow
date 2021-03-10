@@ -28,7 +28,9 @@ initializers = {"xavier_uniform": nn.initializers.xavier_uniform(),
 class NoisyNetwork(nn.Module):
   def apply(self, x, features, bias=True, kernel_init=None):
     def sample_noise(shape):
-      noise = jax.random.normal(random.PRNGKey(0),shape)
+
+      seed = random.randint(0, 50)
+      noise = jax.random.normal(random.PRNGKey(seed),shape)
       return noise
     def f(x):
       return jnp.multiply(jnp.sign(x), jnp.power(jnp.abs(x), 0.5))
