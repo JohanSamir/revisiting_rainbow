@@ -7,6 +7,7 @@ import dopamine.replay_memory.prioritized_replay_buffer
 import networks_new
 import rainbow_agent_new
 import minatar_env
+import external_configurations
 
 JaxDQNAgent.observation_shape = %minatar_env.BREAKOUT_SHAPE
 JaxDQNAgent.observation_dtype = %minatar_env.DTYPE
@@ -21,7 +22,11 @@ JaxDQNAgent.target_update_period = 1000
 JaxRainbowAgentNew.optimizer = 'adam'
 JaxRainbowAgentNew.noisy = True
 JaxRainbowAgentNew.dueling = True
-JaxRainbowAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
+JaxRainbowAgentNew.initzer = @variance_scaling()
+variance_scaling.scale=1
+variance_scaling.mode='fan_avg'
+variance_scaling.distribution='uniform'
+
 JaxRainbowAgentNew.double_dqn = True
 JaxRainbowAgentNew.net_conf = 'minatar'
 JaxRainbowAgentNew.env = None

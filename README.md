@@ -14,7 +14,7 @@ if you are interested to know more about Revisiting Rainbow, considering check t
 
 * **Paper:** [arxiv.org/abs/2011.14826][arXiv_rev] 
 * **Blog:** [https://psc-g.github.io/posts/...][blog]
-* **Video:** [https://slideslive.com/38941329/...][video]
+* **Deep RL Workshop talk, NeurIPS 2020:** [https://slideslive.com/38941329/...][video]
 
 
 ## Quick Start
@@ -78,17 +78,17 @@ Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 ## Giving credit
 If you use Revisiting Rainbow in your research please cite the following:
 
-Johan S. Obando Ceron, & Pablo Samuel Castro (2020). Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research. In Deep Reinforcement Learning Workshop, NeurIPS 2020. [*arXiv preprint:* ][arXiv_rev]
+Johan S. Obando Ceron, & Pablo Samuel Castro (2020). Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research. Proceedings of the 38th International Conference on Machine Learning, ICML 2021. [*arXiv preprint:* ][arXiv_rev]
 
 In BibTeX format:
 
 ```
-@inproceedings{obando20revisiting,
-  author = {Johan S. Obando Ceron and Pablo Samuel Castro},
-  title = {Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research},
-  booktitle = {Deep Reinforcement Learning Workshop, NeurIPS 2020},
-  year = 2020
+@misc{obandoceron2021revisiting,
+      title={Revisiting Rainbow: Promoting more Insightful and Inclusive Deep Reinforcement Learning Research}, 
+      author={Johan S. Obando-Ceron and Pablo Samuel Castro},
+      year={2021},
+      eprint={2011.14826},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
 }
 ```
-
-

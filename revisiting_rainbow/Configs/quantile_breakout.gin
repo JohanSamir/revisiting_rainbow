@@ -7,6 +7,7 @@ import dopamine.replay_memory.prioritized_replay_buffer
 import networks_new
 import quantile_agent_new
 import minatar_env
+import external_configurations
 
 JaxDQNAgent.observation_shape = %minatar_env.BREAKOUT_SHAPE
 JaxDQNAgent.observation_dtype = %minatar_env.DTYPE
@@ -28,7 +29,11 @@ JaxQuantileAgentNew.neurons = None
 JaxQuantileAgentNew.double_dqn = False
 JaxQuantileAgentNew.noisy = False
 JaxQuantileAgentNew.dueling = False
-JaxQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
+JaxQuantileAgentNew.initzer = @variance_scaling()
+variance_scaling.scale=1
+variance_scaling.mode='fan_avg'
+variance_scaling.distribution='uniform'
+
 JaxQuantileAgentNew.replay_scheme = 'uniform' #'prioritized'
 JaxQuantileAgentNew.network  = @networks_new.QuantileNetwork 
 JaxQuantileAgentNew.epsilon_fn = @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon

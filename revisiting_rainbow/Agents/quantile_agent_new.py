@@ -12,15 +12,16 @@ Specifically, we implement the following components:
   * dueling
 
 """
-
+import copy
+import time
 import functools
 from dopamine.jax import networks
 from dopamine.jax.agents.dqn import dqn_agent
 from dopamine.replay_memory import prioritized_replay_buffer #check
-from flax import nn #check
 import gin
 import jax
 import jax.numpy as jnp
+import numpy as onp
 import tensorflow as tf
 
 
@@ -79,12 +80,17 @@ def target_distribution(target_network, next_states, rewards, terminals,
   return jax.lax.stop_gradient(rewards + gamma_with_terminal * next_logits)
 
 
-@functools.partial(jax.jit, static_argnums=( 8, 9, 10, 11))
-def train(target_network, optimizer, states, actions, next_states, rewards,
-          terminals, loss_weights, kappa, num_atoms, cumulative_gamma, double_dqn):
+@functools.partial(jax.jit, static_argnums=(0, 9, 10, 11, 12))
+def train(network_def, target_params, optimizer, states, actions, next_states, rewards,
+          terminals, loss_weights, kappa, num_atoms, cumulative_gamma, double_dqn, rng):
   """Run a training step."""
-  def loss_fn(model, target, loss_multipliers):
-    logits = jax.vmap(model)(states).logits
+
+  online_params = optimizer.target
+  def loss_fn(params,rng_input, target, loss_multipliers):
+    def q_online(state):
+      return network_def.apply(params, state, rng=rng_input)
+
+    logits = jax.vmap(q_online)(states).logits
     logits = jnp.squeeze(logits)
     # Fetch the logits for its selected action. We use vmap to perform this
     # indexing across the batch.
@@ -109,19 +115,42 @@ def train(target_network, optimizer, states, actions, next_states, rewards,
 
     mean_loss = jnp.mean(loss_multipliers * loss)
     return mean_loss, loss
+  
+  rng, rng2, rng3, rng4  = jax.random.split(rng, 4)
+  def q_target(state):
+    return network_def.apply(target_params, state, rng=rng2)
 
-
-  grad_fn = jax.value_and_grad(loss_fn,  has_aux=True)
+  def q_target_online(state):
+    return network_def.apply(online_params, state, rng=rng4)
 
   if double_dqn:
-    target = target_distributionDouble(optimizer.target,target_network, next_states, rewards,  terminals, cumulative_gamma)
+    target = target_distributionDouble(q_target_online, q_target, next_states, rewards,  terminals, cumulative_gamma)
   else:
-    target = target_distribution(target_network, next_states, rewards, terminals, cumulative_gamma)
+    target = target_distribution(q_target, next_states, rewards, terminals, cumulative_gamma)
 
-  (mean_loss, loss), grad =  grad_fn(optimizer.target, target, loss_weights)
+  grad_fn = jax.value_and_grad(loss_fn,  has_aux=True)
+  (mean_loss, loss), grad =  grad_fn(online_params, rng3, target, loss_weights)
   optimizer = optimizer.apply_gradient(grad)
   return optimizer, loss, mean_loss
 
+@functools.partial(jax.jit, static_argnums=(0, 4, 5, 6, 7, 8, 10, 11))
+def select_action(network_def, params, state, rng, num_actions, eval_mode,
+                  epsilon_eval, epsilon_train, epsilon_decay_period,
+                  training_steps, min_replay_history, epsilon_fn):
+
+  epsilon = jnp.where(eval_mode,
+                      epsilon_eval,
+                      epsilon_fn(epsilon_decay_period,
+                                 training_steps,
+                                 min_replay_history,
+                                 epsilon_train))
+  
+  rng, rng1, rng2, rng3 = jax.random.split(rng, num=4)
+  selected_action = jnp.argmax(network_def.apply(params, state, rng=rng3).q_values)  
+  p = jax.random.uniform(rng1)
+  return rng, jnp.where(p <= epsilon,
+                        jax.random.randint(rng2, (), 0, num_actions),
+                        selected_action)
 
 @gin.configurable
 class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
@@ -144,7 +173,8 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
                replay_scheme='prioritized',
                optimizer='adam',
                network=networks.QuantileNetwork,
-               epsilon_fn=dqn_agent.linearly_decaying_epsilon):
+               epsilon_fn=dqn_agent.linearly_decaying_epsilon,
+               seed=None):
     """Initializes the agent and constructs the Graph.
 
     Args:
@@ -186,6 +216,7 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
       allow_partial_reload: bool, whether we allow reloading a partial agent
         (for instance, only the network parameters).
     """
+    seed = int(time.time() * 1e6) if seed is None else seed
     self._num_atoms = num_atoms
     self._kappa = kappa
     self._replay_scheme = replay_scheme
@@ -198,12 +229,13 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
     self._noisy = noisy
     self._dueling = dueling
     self._initzer = initzer
+    self._rng = jax.random.PRNGKey(seed)
 
     super(JaxQuantileAgentNew, self).__init__(
         num_actions=num_actions,
         optimizer=optimizer,
         epsilon_fn = dqn_agent.identity_epsilon if self._noisy == True else epsilon_fn,
-        network=network.partial(num_atoms=self._num_atoms , net_conf=self._net_conf,
+        network=functools.partial(network, num_atoms=self._num_atoms , net_conf=self._net_conf,
                                 env=self._env,
                                 normalize_obs=self._normalize_obs,
                                 hidden_layer=self._hidden_layer, 
@@ -212,23 +244,13 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
                                 dueling=self._dueling,
                                 initzer=self._initzer))
 
-  def _create_network(self, name):
-    r"""Builds a Quantile ConvNet.
+  def _build_networks_and_optimizer(self):
+    self._rng, rng = jax.random.split(self._rng)
+    online_network_params = self.network_def.init(rng, x=self.state, rng=self._rng)
+    optimizer_def = dqn_agent.create_optimizer(self._optimizer_name)
+    self.optimizer = optimizer_def.create(online_network_params)
+    self.target_network_params = copy.deepcopy(online_network_params)
 
-    Equivalent to Rainbow ConvNet, only now the output logits are interpreted
-    as quantiles.
-
-    Args:
-      name: str, this name is passed to the Jax Module.
-    Returns:
-      network: Jax Model, the network instantiated by Jax.
-    """
-    _, initial_params = self.network.init(self._rng,
-                                          name=name,
-                                          x=self.state,
-                                          num_actions=self.num_actions,
-                                          num_atoms=self._num_atoms)
-    return nn.Model(self.network, initial_params)
 
   def _build_replay_buffer(self):
     """Creates the replay buffer used by the agent."""
@@ -242,6 +264,52 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
         update_horizon=self.update_horizon,
         gamma=self.gamma,
         observation_dtype=self.observation_dtype)
+
+  def begin_episode(self, observation):
+    self._reset_state()
+    self._record_observation(observation)
+
+    if not self.eval_mode:
+      self._train_step()
+
+    self._rng, self.action = select_action(self.network_def,
+                                           self.online_params,
+                                           self.state,
+                                           self._rng,
+                                           self.num_actions,
+                                           self.eval_mode,
+                                           self.epsilon_eval,
+                                           self.epsilon_train,
+                                           self.epsilon_decay_period,
+                                           self.training_steps,
+                                           self.min_replay_history,
+                                           self.epsilon_fn)
+    self.action = onp.asarray(self.action)
+    return self.action
+
+  def step(self, reward, observation):
+    self._last_observation = self._observation
+    self._record_observation(observation)
+
+    if not self.eval_mode:
+      self._store_transition(self._last_observation, self.action, reward, False)
+      self._train_step()
+
+    self._rng, self.action = select_action(self.network_def,
+                                           self.online_params,
+                                           self.state,
+                                           self._rng,
+                                           self.num_actions,
+                                           self.eval_mode,
+                                           self.epsilon_eval,
+                                           self.epsilon_train,
+                                           self.epsilon_decay_period,
+                                           self.training_steps,
+                                           self.min_replay_history,
+                                           self.epsilon_fn)
+    self.action = onp.asarray(self.action)
+    return self.action
+
 
   def _train_step(self):
     """Runs a single training step.
@@ -269,7 +337,8 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
           loss_weights = jnp.ones(self.replay_elements['state'].shape[0])
 
         self.optimizer, loss, mean_loss = train(
-            self.target_network,
+            self.network_def,
+            self.target_network_params,
             self.optimizer,
             self.replay_elements['state'],
             self.replay_elements['action'],
@@ -280,7 +349,8 @@ class JaxQuantileAgentNew(dqn_agent.JaxDQNAgent):
             self._kappa,
             self._num_atoms,
             self.cumulative_gamma,
-            self._double_dqn)
+            self._double_dqn,
+            self._rng)
 
         if self._replay_scheme == 'prioritized':   
           # Rainbow and prioritized replay are parametrized by an exponent

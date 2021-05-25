@@ -6,6 +6,7 @@ import dopamine.replay_memory.prioritized_replay_buffer
 
 import networks_new
 import quantile_agent_new
+import external_configurations
 
 JaxDQNAgent.observation_shape = %gym_lib.CARTPOLE_OBSERVATION_SHAPE
 JaxDQNAgent.observation_dtype = %jax_networks.CARTPOLE_OBSERVATION_DTYPE
@@ -27,7 +28,11 @@ JaxQuantileAgentNew.neurons = 512
 JaxQuantileAgentNew.double_dqn = False
 JaxQuantileAgentNew.noisy = False
 JaxQuantileAgentNew.dueling = False
-JaxQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
+JaxQuantileAgentNew.initzer = @variance_scaling()
+variance_scaling.scale=1
+variance_scaling.mode='fan_avg'
+variance_scaling.distribution='uniform'
+
 JaxQuantileAgentNew.replay_scheme = 'uniform' #'prioritized'
 JaxQuantileAgentNew.network  = @networks_new.QuantileNetwork 
 JaxQuantileAgentNew.epsilon_fn = @dqn_agent.identity_epsilon

@@ -8,6 +8,7 @@ import dopamine.discrete_domains.gym_lib
 
 import networks_new
 import implicit_quantile_agent_new
+import external_configurations
 
 JaxImplicitQuantileAgentNew.observation_shape = %gym_lib.ACROBOT_OBSERVATION_SHAPE
 JaxImplicitQuantileAgentNew.observation_dtype =  %jax_networks.ACROBOT_OBSERVATION_DTYPE
@@ -26,7 +27,11 @@ JaxImplicitQuantileAgentNew.neurons = 512
 JaxImplicitQuantileAgentNew.noisy = False
 JaxImplicitQuantileAgentNew.double_dqn = False
 JaxImplicitQuantileAgentNew.dueling = False
-JaxImplicitQuantileAgentNew.initzer = 'variance_scaling'#'xavier_uniform'
+JaxImplicitQuantileAgentNew.initzer = @variance_scaling()
+variance_scaling.scale=1
+variance_scaling.mode='fan_avg'
+variance_scaling.distribution='uniform'
+
 JaxImplicitQuantileAgentNew.replay_scheme = 'uniform'#'prioritized'
 JaxImplicitQuantileAgentNew.kappa = 1.0
 

@@ -7,6 +7,7 @@ import dopamine.replay_memory.prioritized_replay_buffer
 import networks_new
 import dqn_agent_new
 import minatar_env
+import external_configurations
 
 JaxDQNAgent.observation_shape = %minatar_env.SEAQUEST_SHAPE
 JaxDQNAgent.observation_dtype = %minatar_env.DTYPE 
@@ -26,10 +27,14 @@ JaxDQNAgentNew.hidden_layer = 0
 JaxDQNAgentNew.neurons = None
 JaxDQNAgentNew.replay_scheme = 'uniform' #'prioritized' or 'uniform'
 JaxDQNAgentNew.target_opt = 0 #0:DQN 1:Double DQN 2:Munchausen DQN
-JaxDQNAgentNew.mse_inf = False
+JaxDQNAgentNew.mse_inf = True
 JaxDQNAgentNew.noisy = False
 JaxDQNAgentNew.dueling = False
-JaxDQNAgentNew.initzer = 'xavier_uniform' #'variance_scaling'
+JaxDQNAgentNew.initzer = @variance_scaling()
+variance_scaling.scale=1
+variance_scaling.mode='fan_avg'
+variance_scaling.distribution='uniform'
+
 JaxDQNAgentNew.network = @networks_new.DQNNetwork
 JaxDQNAgentNew.epsilon_fn =  @jax.agents.dqn.dqn_agent.linearly_decaying_epsilon
 JaxDQNAgentNew.tau = 0.03
