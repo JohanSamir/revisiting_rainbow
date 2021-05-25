@@ -14,7 +14,7 @@ here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 install_requires = [
-    'dopamine-rl>= 3.1.8 ',
+    'dopamine-rl>= 3.1.10 ',
     ]
 
 rev_rainbow_description = (

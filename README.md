@@ -78,7 +78,7 @@ Conference on Machine Learning, volume 48, pages 1995–2003, 2016.][wang]
 ## Giving credit
 If you use Revisiting Rainbow in your research please cite the following:
 
-Johan S. Obando Ceron, & Pablo Samuel Castro (2020). Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research. Proceedings of the 38th International Conference on Machine Learning, ICML 2021. [*arXiv preprint:* ][arXiv_rev]
+Johan S Obando-Ceron, & Pablo Samuel Castro (2020). Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research. Proceedings of the 38th International Conference on Machine Learning, ICML 2021. [*arXiv preprint:* ][arXiv_rev]
 
 In BibTeX format:
 
