@@ -83,12 +83,12 @@ Johan S Obando-Ceron, & Pablo Samuel Castro (2020). Revisiting Rainbow: Promotin
 In BibTeX format:
 
 ```
-@misc{obandoceron2021revisiting,
-      title={Revisiting Rainbow: Promoting more Insightful and Inclusive Deep Reinforcement Learning Research}, 
-      author={Johan S. Obando-Ceron and Pablo Samuel Castro},
-      year={2021},
-      eprint={2011.14826},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+@inproceedings{obando2020revisiting,
+  title={Revisiting Rainbow: Promoting more insightful and inclusive deep reinforcement learning research},
+  author={Obando-Ceron, Johan S and Castro, Pablo Samuel},
+  booktitle = {Proceedings of the 38th International Conference on Machine Learning},
+  year = {2021},
+  series = {Proceedings of Machine Learning Research},
+  publisher = {PMLR},
 }
 ```
