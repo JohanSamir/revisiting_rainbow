@@ -41,7 +41,7 @@ pip install -r revisiting_rainbow/requirements.txt
 
 ## Running tests
 
-Check the following colab file [`revisiting_rainbow/test_main.ipynb`](https://github.com/revisiting_rainbow/test_main.ipynb) to run the basic DQN agent.
+Check the following colab file [`revisiting_rainbow/test_main.ipynb`](https://github.com/JohanSamir/revisiting_rainbow/blob/main/revisiting_rainbow/test_main.ipynb) to run the basic DQN agent.
 
 ## References
 
